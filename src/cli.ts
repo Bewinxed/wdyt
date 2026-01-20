@@ -14,6 +14,11 @@ import { defineCommand, runMain } from "citty";
 import type { CLIFlags } from "./types";
 import { windowsCommand } from "./commands/windows";
 import { builderCommand } from "./commands/builder";
+import {
+  promptGetCommand,
+  promptSetCommand,
+  promptExportCommand,
+} from "./commands/prompt";
 
 /**
  * Parse and execute an expression
@@ -43,15 +48,28 @@ async function executeExpression(
       }
       return await builderCommand(flags.window, args);
 
-    case "prompt":
-      // Will be implemented in fn-1-c5m.5
+    case "prompt": {
       if (!flags.window || !flags.tab) {
         return {
           success: false,
           error: "prompt commands require -w <window> -t <tab>",
         };
       }
-      return { success: false, error: "prompt not yet implemented" };
+
+      // Parse subcommand: "get", "export <file>"
+      const promptArgs = args?.trim();
+      if (!promptArgs || promptArgs === "get") {
+        return await promptGetCommand(flags.window, flags.tab);
+      }
+
+      if (promptArgs.startsWith("export ")) {
+        // Extract file path - may be quoted with shlex.quote
+        const filePath = promptArgs.slice(7).trim().replace(/^'|'$/g, "");
+        return await promptExportCommand(flags.window, flags.tab, filePath);
+      }
+
+      return { success: false, error: `Unknown prompt subcommand: ${promptArgs}` };
+    }
 
     case "select":
       // Will be implemented in fn-1-c5m.6
@@ -63,8 +81,19 @@ async function executeExpression(
       }
       return { success: false, error: "select not yet implemented" };
 
-    case "call":
-      // Handle "call chat_send {json}" - will be implemented in fn-1-c5m.7
+    case "call": {
+      // Handle "call prompt {json}" and "call chat_send {json}"
+      if (args?.startsWith("prompt ")) {
+        if (!flags.window || !flags.tab) {
+          return {
+            success: false,
+            error: "prompt requires -w <window> -t <tab>",
+          };
+        }
+        const payload = args.slice(7).trim();
+        return await promptSetCommand(flags.window, flags.tab, payload);
+      }
+
       if (args?.startsWith("chat_send")) {
         if (!flags.window || !flags.tab) {
           return {
@@ -75,6 +104,7 @@ async function executeExpression(
         return { success: false, error: "chat_send not yet implemented" };
       }
       return { success: false, error: `Unknown call: ${args}` };
+    }
 
     default:
       return { success: false, error: `Unknown command: ${command}` };
@@ -98,7 +128,8 @@ function formatOutput(
   // For non-raw-json mode, prefer the output field if present
   // This allows commands like builder to return "Tab: <uuid>" format
   if (result.success) {
-    if (result.output) {
+    // Check if output is defined (not undefined), allowing empty strings
+    if (result.output !== undefined) {
       return result.output;
     }
     if (typeof result.data === "object") {

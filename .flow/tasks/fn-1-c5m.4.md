@@ -18,9 +18,8 @@ Implement `builder` command that creates a new tab.
 - [ ] Tab UUID is valid format (alphanumeric + hyphens)
 - [ ] Tab is persisted in state under the window
 ## Done summary
-TBD
-
+Implemented builder command that creates tabs in a window. The command parses JSON args with summary field, creates a tab in state, and returns Tab: <uuid> matching flowctl.py regex.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9f5e83469d37db06a211735c12f680129db7b7ee
+- Tests: ./rp-cli -w 1 -e 'builder {"summary":"test"}', ./rp-cli -w 1 -e 'builder {}', ./rp-cli -w 1 -e 'builder', cat ~/.rp-cli/state.json
 - PRs:
