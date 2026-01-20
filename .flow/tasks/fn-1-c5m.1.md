@@ -30,9 +30,8 @@ Set up the Bun project structure and CLI using **citty** (modern CLI framework f
 - [ ] Unknown expressions return error with code 1
 - [ ] `bun run src/cli.ts --help` shows usage
 ## Done summary
-TBD
-
+Set up Bun project with citty CLI framework. CLI parses --raw-json, -w, -t, -e flags and routes expressions to command handlers. Unknown commands exit with code 1.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f18ed97293968ec463d7f021dd54fa8fdc95d654
+- Tests: bun run src/cli.ts --help, bun run src/cli.ts --raw-json -e windows, bun run src/cli.ts -e unknown_command
 - PRs:

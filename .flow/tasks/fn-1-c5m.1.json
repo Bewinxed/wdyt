@@ -5,10 +5,21 @@
   "created_at": "2026-01-20T06:10:28.496213Z",
   "depends_on": [],
   "epic": "fn-1-c5m",
+  "evidence": {
+    "commits": [
+      "f18ed97293968ec463d7f021dd54fa8fdc95d654"
+    ],
+    "prs": [],
+    "tests": [
+      "bun run src/cli.ts --help",
+      "bun run src/cli.ts --raw-json -e windows",
+      "bun run src/cli.ts -e unknown_command"
+    ]
+  },
   "id": "fn-1-c5m.1",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.1.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Project scaffolding and CLI parser",
-  "updated_at": "2026-01-20T06:17:03.426372Z"
+  "updated_at": "2026-01-20T06:20:25.434403Z"
 }

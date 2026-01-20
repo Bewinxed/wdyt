@@ -2,19 +2,19 @@
  * Types for rp-cli - Linux alternative for RepoPrompt
  */
 
-/** Window representation */
-export interface Window {
-  id: number;
-  name: string;
-  tabs: Tab[];
-}
-
 /** Tab within a window */
 export interface Tab {
   id: string;
-  name: string;
-  path?: string;
+  prompt: string;
+  selectedFiles: string[];
   createdAt: string;
+}
+
+/** Window representation */
+export interface Window {
+  id: number;
+  rootFolderPaths: string[];
+  tabs: Tab[];
 }
 
 /** Builder configuration for creating a new tab */
@@ -58,6 +58,12 @@ export interface CommandResult {
 
 /** State file structure */
 export interface StateFile {
-  windows: Window[];
   version: number;
+  windows: Window[];
+}
+
+/** Tab update data - partial fields that can be updated */
+export interface TabUpdate {
+  prompt?: string;
+  selectedFiles?: string[];
 }
