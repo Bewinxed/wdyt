@@ -20,6 +20,7 @@ import {
   promptExportCommand,
 } from "./commands/prompt";
 import { selectGetCommand, selectAddCommand } from "./commands/select";
+import { chatSendCommand } from "./commands/chat";
 
 /**
  * Parse and execute an expression
@@ -114,7 +115,9 @@ async function executeExpression(
             error: "chat_send requires -w <window> -t <tab>",
           };
         }
-        return { success: false, error: "chat_send not yet implemented" };
+        // Extract payload - "chat_send {json}" or "chat_send"
+        const payload = args.slice(9).trim() || "{}";
+        return await chatSendCommand(flags.window, flags.tab, payload);
       }
       return { success: false, error: `Unknown call: ${args}` };
     }

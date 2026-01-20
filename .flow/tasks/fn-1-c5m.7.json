@@ -1,7 +1,7 @@
 {
-  "assignee": null,
+  "assignee": "bewinxed@gmail.com",
   "claim_note": "",
-  "claimed_at": null,
+  "claimed_at": "2026-01-20T08:35:59.726090Z",
   "created_at": "2026-01-20T06:10:32.781719Z",
   "depends_on": [
     "fn-1-c5m.2"
@@ -10,7 +10,7 @@
   "id": "fn-1-c5m.7",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.7.md",
-  "status": "todo",
+  "status": "in_progress",
   "title": "Chat send command",
-  "updated_at": "2026-01-20T06:11:30.507027Z"
+  "updated_at": "2026-01-20T08:35:59.726124Z"
 }

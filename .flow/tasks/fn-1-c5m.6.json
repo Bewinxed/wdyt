@@ -7,10 +7,20 @@
     "fn-1-c5m.2"
   ],
   "epic": "fn-1-c5m",
+  "evidence": {
+    "commits": [
+      "d5a58e4d137718962c27364dbb0f77d0f248e659"
+    ],
+    "prs": [],
+    "tests": [
+      "bun build && ./rp-cli -w 1 -t <tab> -e 'select get'",
+      "./rp-cli -w 1 -t <tab> -e 'select add src/cli.ts src/state.ts'"
+    ]
+  },
   "id": "fn-1-c5m.6",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.6.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Select commands (get/add)",
-  "updated_at": "2026-01-20T08:31:43.607052Z"
+  "updated_at": "2026-01-20T08:35:29.993927Z"
 }
