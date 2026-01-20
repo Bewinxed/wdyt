@@ -7,10 +7,21 @@
     "fn-1-c5m.2"
   ],
   "epic": "fn-1-c5m",
+  "evidence": {
+    "commits": [
+      "eb557dede4324029b6044ce15717bbf81d0a03a1"
+    ],
+    "prs": [],
+    "tests": [
+      "./rp-cli -w 1 -t <tab> -e 'prompt get'",
+      "./rp-cli -w 1 -t <tab> -e 'call prompt {\"op\":\"set\",\"text\":\"hello\"}'",
+      "./rp-cli -w 1 -t <tab> -e 'prompt export /tmp/out.txt'"
+    ]
+  },
   "id": "fn-1-c5m.5",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.5.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Prompt commands (get/set/export)",
-  "updated_at": "2026-01-20T08:26:42.140779Z"
+  "updated_at": "2026-01-20T08:31:20.805725Z"
 }

@@ -19,6 +19,7 @@ import {
   promptSetCommand,
   promptExportCommand,
 } from "./commands/prompt";
+import { selectGetCommand, selectAddCommand } from "./commands/select";
 
 /**
  * Parse and execute an expression
@@ -71,15 +72,27 @@ async function executeExpression(
       return { success: false, error: `Unknown prompt subcommand: ${promptArgs}` };
     }
 
-    case "select":
-      // Will be implemented in fn-1-c5m.6
+    case "select": {
       if (!flags.window || !flags.tab) {
         return {
           success: false,
           error: "select commands require -w <window> -t <tab>",
         };
       }
-      return { success: false, error: "select not yet implemented" };
+
+      // Parse subcommand: "get", "add <paths>"
+      const selectArgs = args?.trim();
+      if (!selectArgs || selectArgs === "get") {
+        return await selectGetCommand(flags.window, flags.tab);
+      }
+
+      if (selectArgs.startsWith("add ")) {
+        const pathsArg = selectArgs.slice(4).trim();
+        return await selectAddCommand(flags.window, flags.tab, pathsArg);
+      }
+
+      return { success: false, error: `Unknown select subcommand: ${selectArgs}` };
+    }
 
     case "call": {
       // Handle "call prompt {json}" and "call chat_send {json}"
