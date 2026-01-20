@@ -12,14 +12,15 @@
 
 import { defineCommand, runMain } from "citty";
 import type { CLIFlags } from "./types";
+import { windowsCommand } from "./commands/windows";
 
 /**
  * Parse and execute an expression
  */
-function executeExpression(
+async function executeExpression(
   expression: string,
   flags: CLIFlags
-): { success: boolean; data?: unknown; error?: string } {
+): Promise<{ success: boolean; data?: unknown; error?: string }> {
   const expr = expression.trim();
 
   // Parse command and arguments
@@ -33,11 +34,7 @@ function executeExpression(
 
   switch (command) {
     case "windows":
-      // Will be implemented in fn-1-c5m.3
-      return {
-        success: true,
-        data: { windows: [] },
-      };
+      return await windowsCommand();
 
     case "builder":
       // Will be implemented in fn-1-c5m.4
@@ -133,7 +130,7 @@ const main = defineCommand({
       description: "Expression to execute",
     },
   },
-  run({ args }) {
+  async run({ args }) {
     const flags: CLIFlags = {
       rawJson: args["raw-json"],
       window: args.w ? parseInt(args.w, 10) : undefined,
@@ -169,7 +166,7 @@ const main = defineCommand({
     }
 
     // Execute expression
-    const result = executeExpression(flags.expression, flags);
+    const result = await executeExpression(flags.expression, flags);
     const output = formatOutput(result, flags.rawJson);
     console.log(output);
 

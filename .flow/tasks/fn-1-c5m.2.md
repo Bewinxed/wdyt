@@ -22,9 +22,8 @@ Create state persistence layer for windows, tabs, workspaces, and selections.
 - [ ] `updateTab(windowId, tabId, data)` persists changes
 - [ ] State survives process restarts
 ## Done summary
-TBD
-
+Implemented state persistence layer storing windows/tabs in ~/.rp-cli/state.json with getWindow, createTab, updateTab functions. All 10 unit tests pass.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9abe8e70b1f66c52d50de639bffc99b21a341a02
+- Tests: bun test src/state.test.ts
 - PRs:

@@ -1,7 +1,7 @@
 {
-  "assignee": null,
+  "assignee": "bewinxed@gmail.com",
   "claim_note": "",
-  "claimed_at": null,
+  "claimed_at": "2026-01-20T06:26:12.097263Z",
   "created_at": "2026-01-20T06:10:29.982195Z",
   "depends_on": [
     "fn-1-c5m.2"
@@ -10,7 +10,7 @@
   "id": "fn-1-c5m.3",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.3.md",
-  "status": "todo",
+  "status": "in_progress",
   "title": "Windows command",
-  "updated_at": "2026-01-20T06:11:28.194381Z"
+  "updated_at": "2026-01-20T06:26:12.097311Z"
 }

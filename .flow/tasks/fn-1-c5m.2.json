@@ -7,10 +7,19 @@
     "fn-1-c5m.1"
   ],
   "epic": "fn-1-c5m",
+  "evidence": {
+    "commits": [
+      "9abe8e70b1f66c52d50de639bffc99b21a341a02"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test src/state.test.ts"
+    ]
+  },
   "id": "fn-1-c5m.2",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.2.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "State management layer",
-  "updated_at": "2026-01-20T06:21:20.197834Z"
+  "updated_at": "2026-01-20T06:25:21.153606Z"
 }
