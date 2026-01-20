@@ -17,9 +17,8 @@ Implement `windows` command that lists all windows.
 - [ ] JSON has `windows` array with `windowID` and `rootFolderPaths`
 - [ ] Empty state returns empty array (no crash)
 ## Done summary
-TBD
-
+Implemented windows command that returns all windows with windowID and rootFolderPaths in JSON format compatible with flowctl.py parsing.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ddfb91128ddc3271e7f5a86ad6cc84ff46aae34b
+- Tests: bun test src/state.test.ts, ./rp-cli --raw-json -e "windows"
 - PRs:

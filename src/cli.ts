@@ -13,6 +13,7 @@
 import { defineCommand, runMain } from "citty";
 import type { CLIFlags } from "./types";
 import { windowsCommand } from "./commands/windows";
+import { builderCommand } from "./commands/builder";
 
 /**
  * Parse and execute an expression
@@ -20,7 +21,7 @@ import { windowsCommand } from "./commands/windows";
 async function executeExpression(
   expression: string,
   flags: CLIFlags
-): Promise<{ success: boolean; data?: unknown; error?: string }> {
+): Promise<{ success: boolean; data?: unknown; output?: string; error?: string }> {
   const expr = expression.trim();
 
   // Parse command and arguments
@@ -37,11 +38,10 @@ async function executeExpression(
       return await windowsCommand();
 
     case "builder":
-      // Will be implemented in fn-1-c5m.4
       if (!flags.window) {
         return { success: false, error: "builder requires -w <window>" };
       }
-      return { success: false, error: "builder not yet implemented" };
+      return await builderCommand(flags.window, args);
 
     case "prompt":
       // Will be implemented in fn-1-c5m.5
@@ -85,7 +85,7 @@ async function executeExpression(
  * Format output based on --raw-json flag
  */
 function formatOutput(
-  result: { success: boolean; data?: unknown; error?: string },
+  result: { success: boolean; data?: unknown; output?: string; error?: string },
   rawJson: boolean
 ): string {
   if (rawJson) {
@@ -95,7 +95,12 @@ function formatOutput(
     return JSON.stringify({ error: result.error });
   }
 
+  // For non-raw-json mode, prefer the output field if present
+  // This allows commands like builder to return "Tab: <uuid>" format
   if (result.success) {
+    if (result.output) {
+      return result.output;
+    }
     if (typeof result.data === "object") {
       return JSON.stringify(result.data, null, 2);
     }
