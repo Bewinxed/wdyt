@@ -1,7 +1,7 @@
 {
-  "assignee": null,
+  "assignee": "bewinxed@gmail.com",
   "claim_note": "",
-  "claimed_at": null,
+  "claimed_at": "2026-01-20T08:44:13.952856Z",
   "created_at": "2026-01-20T06:10:33.189888Z",
   "depends_on": [
     "fn-1-c5m.3",
@@ -11,10 +11,24 @@
     "fn-1-c5m.7"
   ],
   "epic": "fn-1-c5m",
+  "evidence": {
+    "commits": [
+      "454089cd1ed3fe4174696991a2a7a4be9e8b93ac"
+    ],
+    "prs": [],
+    "tests": [
+      "flowctl rp pick-window --repo-root .",
+      "flowctl rp setup-review --repo-root . --summary 'test'",
+      "flowctl rp prompt-export --window 1 --tab <tab> --out /tmp/test.txt",
+      "flowctl rp select-add",
+      "flowctl rp select-get",
+      "flowctl rp chat-send --new-chat"
+    ]
+  },
   "id": "fn-1-c5m.8",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.8.md",
-  "status": "todo",
+  "status": "done",
   "title": "flowctl integration test",
-  "updated_at": "2026-01-20T06:11:33.867738Z"
+  "updated_at": "2026-01-20T08:48:14.575702Z"
 }

@@ -21,9 +21,8 @@ Implement `call chat_send` to export context for review.
 - [ ] XML includes directory structure and file contents
 - [ ] Handles missing files gracefully
 ## Done summary
-TBD
-
+Implemented chat_send command that exports context (prompt + selected files as XML) to ~/.rp-cli/chats/<uuid>.xml and returns Chat: `<uuid>` format parseable by flowctl.py.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 454089cd1ed3fe4174696991a2a7a4be9e8b93ac
+- Tests: ./rp-cli -w 1 -t TAB -e 'call chat_send {json}'
 - PRs:

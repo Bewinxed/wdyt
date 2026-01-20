@@ -20,9 +20,8 @@ Test full integration with flowctl.py review commands.
 - [ ] `flowctl rp prompt-export --file /tmp/test.txt` creates file
 - [ ] No flowctl.py code changes required
 ## Done summary
-TBD
-
+Verified full flowctl.py integration with rp-cli. All acceptance criteria passed: pick-window, setup-review, prompt-export, select-add/get, and chat-send commands work correctly without requiring any flowctl.py code changes.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 454089cd1ed3fe4174696991a2a7a4be9e8b93ac
+- Tests: flowctl rp pick-window --repo-root ., flowctl rp setup-review --repo-root . --summary 'test', flowctl rp prompt-export --window 1 --tab <tab> --out /tmp/test.txt, flowctl rp select-add, flowctl rp select-get, flowctl rp chat-send --new-chat
 - PRs:

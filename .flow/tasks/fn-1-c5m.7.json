@@ -7,10 +7,19 @@
     "fn-1-c5m.2"
   ],
   "epic": "fn-1-c5m",
+  "evidence": {
+    "commits": [
+      "454089cd1ed3fe4174696991a2a7a4be9e8b93ac"
+    ],
+    "prs": [],
+    "tests": [
+      "./rp-cli -w 1 -t TAB -e 'call chat_send {json}'"
+    ]
+  },
   "id": "fn-1-c5m.7",
   "priority": null,
   "spec_path": ".flow/tasks/fn-1-c5m.7.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Chat send command",
-  "updated_at": "2026-01-20T08:35:59.726124Z"
+  "updated_at": "2026-01-20T08:43:29.639765Z"
 }
