@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-01-20T06:10:30.653033Z",
+  "depends_on": [
+    "fn-1-c5m.2"
+  ],
+  "epic": "fn-1-c5m",
+  "id": "fn-1-c5m.4",
+  "priority": null,
+  "spec_path": ".flow/tasks/fn-1-c5m.4.md",
+  "status": "todo",
+  "title": "Builder command",
+  "updated_at": "2026-01-20T06:11:28.748428Z"
+}

@@ -1,0 +1,13 @@
+{
+  "branch_name": "fn-1-c5m",
+  "created_at": "2026-01-20T06:09:54.948903Z",
+  "depends_on_epics": [],
+  "id": "fn-1-c5m",
+  "next_task": 1,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "spec_path": ".flow/specs/fn-1-c5m.md",
+  "status": "open",
+  "title": "rp-cli Alternative for Linux (TypeScript/Bun)",
+  "updated_at": "2026-01-20T06:10:17.680534Z"
+}

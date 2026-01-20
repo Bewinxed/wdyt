@@ -1,0 +1,11 @@
+{
+  "memory": {
+    "enabled": false
+  },
+  "planSync": {
+    "enabled": false
+  },
+  "review": {
+    "backend": null
+  }
+}

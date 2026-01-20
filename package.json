@@ -1,0 +1,21 @@
+{
+  "name": "rp-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Linux alternative for RepoPrompt rp-cli",
+  "main": "src/cli.ts",
+  "bin": {
+    "rp-cli": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "build": "bun build ./src/cli.ts --compile --outfile rp-cli",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "citty": "^0.1.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0"
+  }
+}
