@@ -26,34 +26,33 @@ import {
 import { selectGetCommand, selectAddCommand } from "./commands/select";
 import { chatSendCommand } from "./commands/chat";
 import { initCommand, parseInitArgs } from "./commands/init";
+import { parseExpression } from "./parseExpression";
 
 /**
- * Parse and execute an expression
+ * Execute a parsed expression
  */
 async function executeExpression(
   expression: string,
   flags: CLIFlags
 ): Promise<{ success: boolean; data?: unknown; output?: string; error?: string }> {
-  const expr = expression.trim();
+  const parsed = parseExpression(expression);
 
-  // Parse command and arguments
-  // Expressions can be: "windows", "builder {json}", "prompt get", etc.
-  const match = expr.match(/^(\w+)(?:\s+(.*))?$/);
-  if (!match) {
+  if (!parsed.command) {
     return { success: false, error: `Invalid expression: ${expression}` };
   }
 
-  const [, command, args] = match;
-
-  switch (command) {
+  switch (parsed.command) {
     case "windows":
       return await windowsCommand();
 
-    case "builder":
+    case "builder": {
       if (!flags.window) {
         return { success: false, error: "builder requires -w <window>" };
       }
-      return await builderCommand(flags.window, args);
+      // Pass the first positional (summary) and flags
+      const summary = parsed.positional[0];
+      return await builderCommand(flags.window, summary, parsed.flags);
+    }
 
     case "prompt": {
       if (!flags.window || !flags.tab) {
@@ -63,19 +62,21 @@ async function executeExpression(
         };
       }
 
-      // Parse subcommand: "get", "export <file>"
-      const promptArgs = args?.trim();
-      if (!promptArgs || promptArgs === "get") {
+      const subcommand = parsed.subcommand || "get";
+
+      if (subcommand === "get") {
         return await promptGetCommand(flags.window, flags.tab);
       }
 
-      if (promptArgs.startsWith("export ")) {
-        // Extract file path - may be quoted with shlex.quote
-        const filePath = promptArgs.slice(7).trim().replace(/^'|'$/g, "");
+      if (subcommand === "export") {
+        const filePath = parsed.positional[0];
+        if (!filePath) {
+          return { success: false, error: "prompt export requires a file path" };
+        }
         return await promptExportCommand(flags.window, flags.tab, filePath);
       }
 
-      return { success: false, error: `Unknown prompt subcommand: ${promptArgs}` };
+      return { success: false, error: `Unknown prompt subcommand: ${subcommand}` };
     }
 
     case "select": {
@@ -86,49 +87,55 @@ async function executeExpression(
         };
       }
 
-      // Parse subcommand: "get", "add <paths>"
-      const selectArgs = args?.trim();
-      if (!selectArgs || selectArgs === "get") {
+      const subcommand = parsed.subcommand || "get";
+
+      if (subcommand === "get") {
         return await selectGetCommand(flags.window, flags.tab);
       }
 
-      if (selectArgs.startsWith("add ")) {
-        const pathsArg = selectArgs.slice(4).trim();
-        return await selectAddCommand(flags.window, flags.tab, pathsArg);
+      if (subcommand === "add") {
+        // All remaining positionals are paths
+        const paths = parsed.positional.join(" ");
+        if (!paths) {
+          return { success: false, error: "select add requires file paths" };
+        }
+        return await selectAddCommand(flags.window, flags.tab, paths);
       }
 
-      return { success: false, error: `Unknown select subcommand: ${selectArgs}` };
+      return { success: false, error: `Unknown select subcommand: ${subcommand}` };
     }
 
     case "call": {
       // Handle "call prompt {json}" and "call chat_send {json}"
-      if (args?.startsWith("prompt ")) {
+      const callTarget = parsed.subcommand || parsed.positional[0];
+
+      if (callTarget === "prompt") {
         if (!flags.window || !flags.tab) {
           return {
             success: false,
             error: "prompt requires -w <window> -t <tab>",
           };
         }
-        const payload = args.slice(7).trim();
+        const payload = parsed.positional.slice(1).join(" ") || "{}";
         return await promptSetCommand(flags.window, flags.tab, payload);
       }
 
-      if (args?.startsWith("chat_send")) {
+      if (callTarget === "chat_send") {
         if (!flags.window || !flags.tab) {
           return {
             success: false,
             error: "chat_send requires -w <window> -t <tab>",
           };
         }
-        // Extract payload - "chat_send {json}" or "chat_send"
-        const payload = args.slice(9).trim() || "{}";
+        const payload = parsed.positional.slice(1).join(" ") || "{}";
         return await chatSendCommand(flags.window, flags.tab, payload);
       }
-      return { success: false, error: `Unknown call: ${args}` };
+
+      return { success: false, error: `Unknown call: ${callTarget}` };
     }
 
     default:
-      return { success: false, error: `Unknown command: ${command}` };
+      return { success: false, error: `Unknown command: ${parsed.command}` };
   }
 }
 

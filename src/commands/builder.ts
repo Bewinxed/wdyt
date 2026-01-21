@@ -1,14 +1,12 @@
 /**
  * Builder command - create a new tab
  *
- * Parses JSON arg: {summary: string}
  * Returns: Tab: <uuid>
  * Compatible with flowctl.py parsing at line 255-259:
  *   match = re.search(r"Tab:\s*([A-Za-z0-9-]+)", output)
  */
 
 import { createTab, getWindow } from "../state";
-import type { BuilderConfig } from "../types";
 
 /**
  * Builder command response
@@ -18,43 +16,11 @@ export interface BuilderResponse {
 }
 
 /**
- * Parse builder JSON argument
- * Handles formats:
- * - {} or {"summary": "..."}  (JSON object)
- * - "summary text"            (JSON string - flowctl format)
- * - "summary" --response-type review  (flowctl with flags - flags ignored)
- *
- * @param args - JSON string or object
- * @returns Parsed BuilderConfig or null if invalid
+ * Builder flags from expression parser
  */
-function parseBuilderArgs(args?: string): BuilderConfig | null {
-  if (!args) {
-    // Empty config is valid - just creates a blank tab
-    return {};
-  }
-
-  let jsonPart = args.trim();
-
-  // Strip --response-type flag if present (not supported, but don't fail)
-  // flowctl passes: "summary" --response-type review
-  const responseTypeMatch = jsonPart.match(/^(.+?)\s+--response-type\s+\w+$/);
-  if (responseTypeMatch) {
-    jsonPart = responseTypeMatch[1].trim();
-  }
-
-  try {
-    const parsed = JSON.parse(jsonPart);
-
-    // If parsed is a string, convert to BuilderConfig with summary
-    if (typeof parsed === "string") {
-      return { summary: parsed };
-    }
-
-    // Otherwise expect an object
-    return parsed as BuilderConfig;
-  } catch {
-    return null;
-  }
+export interface BuilderFlags {
+  "response-type"?: string;
+  [key: string]: string | boolean | undefined;
 }
 
 /**
@@ -62,12 +28,14 @@ function parseBuilderArgs(args?: string): BuilderConfig | null {
  * Creates a new tab in the specified window
  *
  * @param windowId - The window ID to create the tab in
- * @param args - JSON string with optional summary, path, name
+ * @param summary - Optional summary/description for the tab
+ * @param flags - Optional flags (e.g., --response-type)
  * @returns Tab: <uuid> on success
  */
 export async function builderCommand(
   windowId: number,
-  args?: string
+  summary?: string,
+  flags?: BuilderFlags
 ): Promise<{
   success: boolean;
   data?: BuilderResponse;
@@ -78,17 +46,12 @@ export async function builderCommand(
     // Verify window exists
     await getWindow(windowId);
 
-    // Parse builder config (optional)
-    const config = parseBuilderArgs(args);
-    if (config === null) {
-      return {
-        success: false,
-        error: `Invalid builder config JSON: ${args}`,
-      };
-    }
-
     // Create the tab
     const tab = await createTab(windowId);
+
+    // Note: summary and flags like --response-type are accepted but
+    // not used in this minimal implementation. The real RepoPrompt
+    // uses them for its GUI features.
 
     // Return in the format flowctl.py expects: Tab: <uuid>
     return {
