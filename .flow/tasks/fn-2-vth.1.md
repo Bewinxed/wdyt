@@ -35,9 +35,24 @@ r"^class\s+(\w+)"
 - [ ] TBD
 
 ## Done summary
-TBD
+## Summary
 
+Implemented symbol extraction module at `src/context/symbols.ts` with support for:
+- TypeScript/JavaScript (functions, classes, types, interfaces, const exports)
+- Python (functions, classes)
+- Go (functions, types, structs, interfaces)
+- Rust (functions, structs, enums, traits, impl blocks)
+
+## Files Changed
+- src/context/symbols.ts (new) - Main extraction logic
+- src/context/symbols.test.ts (new) - Comprehensive tests
+
+## Test Results
+All 6 test suites pass covering all supported languages.
+
+## Review
+SHIP verdict from rp review - no critical issues.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 717a5c1
+- Tests: src/context/symbols.test.ts
 - PRs:
