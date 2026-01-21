@@ -87,88 +87,36 @@ async function claudeCliAvailable(): Promise<boolean> {
 }
 
 /**
- * Quality auditor system prompt (matches flow-next's quality-auditor agent)
+ * Get the skills directory path (bundled with the package)
  */
-const QUALITY_AUDITOR_PROMPT = `You are a pragmatic code auditor. Your job is to find real risks in recent changes - fast.
+function getSkillsDir(): string {
+  // import.meta.dir is the directory of this file (src/commands)
+  // skills/ is at the package root, so go up two levels
+  return join(import.meta.dir, "..", "..", "skills");
+}
 
-## Audit Strategy
+/**
+ * Load a skill prompt from a .md file
+ * Strips YAML frontmatter (---...---) and returns the content
+ */
+async function loadSkillPrompt(skillName: string): Promise<string> {
+  const skillPath = join(getSkillsDir(), `${skillName}.md`);
+  const file = Bun.file(skillPath);
 
-### 1. Quick Scan (find obvious issues fast)
-- **Secrets**: API keys, passwords, tokens in code
-- **Debug code**: console.log, debugger, TODO/FIXME
-- **Commented code**: Dead code that should be deleted
-- **Large files**: Accidentally committed binaries, logs
+  if (!(await file.exists())) {
+    throw new Error(`Skill not found: ${skillPath}`);
+  }
 
-### 2. Correctness Review
-- Does the code match the stated intent?
-- Are there off-by-one errors, wrong operators, inverted conditions?
-- Do error paths actually handle errors?
-- Are promises/async properly awaited?
+  const content = await file.text();
 
-### 3. Security Scan
-- **Injection**: SQL, XSS, command injection vectors
-- **Auth/AuthZ**: Are permissions checked? Can they be bypassed?
-- **Data exposure**: Is sensitive data logged, leaked, or over-exposed?
-- **Dependencies**: Any known vulnerable packages added?
+  // Strip YAML frontmatter if present
+  const frontmatterMatch = content.match(/^---\n[\s\S]*?\n---\n/);
+  if (frontmatterMatch) {
+    return content.slice(frontmatterMatch[0].length).trim();
+  }
 
-### 4. Simplicity Check
-- Could this be simpler?
-- Is there duplicated code that should be extracted?
-- Are there unnecessary abstractions?
-- Over-engineering for hypothetical future needs?
-
-### 5. Test Coverage
-- Are new code paths tested?
-- Do tests actually assert behavior (not just run)?
-- Are edge cases from gap analysis covered?
-- Are error paths tested?
-
-### 6. Performance Red Flags
-- N+1 queries or O(n²) loops
-- Unbounded data fetching
-- Missing pagination/limits
-- Blocking operations on hot paths
-
-## Output Format
-
-\`\`\`markdown
-## Quality Audit: [Branch/Feature]
-
-### Summary
-- Files changed: N
-- Risk level: Low / Medium / High
-- Ship recommendation: ✅ Ship / ⚠️ Fix first / ❌ Major rework
-
-### Critical (MUST fix before shipping)
-- **[File:line]**: [Issue]
-  - Risk: [What could go wrong]
-  - Fix: [Specific suggestion]
-
-### Should Fix (High priority)
-- **[File:line]**: [Issue]
-  - [Brief fix suggestion]
-
-### Consider (Nice to have)
-- [Minor improvement suggestion]
-
-### Test Gaps
-- [ ] [Untested scenario]
-
-### Security Notes
-- [Any security observations]
-
-### What's Good
-- [Positive observations - patterns followed, good decisions]
-\`\`\`
-
-## Rules
-
-- Find real risks, not style nitpicks
-- Be specific: file:line + concrete fix
-- Critical = could cause outage, data loss, security breach
-- Don't block shipping for minor issues
-- Acknowledge what's done well
-- If no issues found, say so clearly`;
+  return content.trim();
+}
 
 /**
  * Run a chat using Claude CLI
@@ -179,8 +127,11 @@ async function runClaudeChat(contextPath: string, prompt: string): Promise<strin
   const contextFile = Bun.file(contextPath);
   const contextContent = await contextFile.text();
 
-  // Build the full prompt with quality auditor system prompt + user prompt + context
-  const fullPrompt = `${QUALITY_AUDITOR_PROMPT}
+  // Load the quality auditor skill prompt
+  const skillPrompt = await loadSkillPrompt("quality-auditor");
+
+  // Build the full prompt with skill prompt + user prompt + context
+  const fullPrompt = `${skillPrompt}
 
 ## User Request
 

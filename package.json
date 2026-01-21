@@ -1,6 +1,6 @@
 {
   "name": "wdyt",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "description": "Code review context builder for LLMs - what do you think?",
   "license": "MIT",
@@ -11,6 +11,7 @@
   },
   "files": [
     "src/**/*.ts",
+    "skills/**/*.md",
     "README.md",
     "LICENSE"
   ],
