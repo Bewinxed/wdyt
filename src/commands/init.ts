@@ -13,11 +13,38 @@ import { join } from "path";
 import { homedir } from "os";
 import { $ } from "bun";
 import * as readline from "readline";
+import pkg from "../../package.json";
+
+const CURRENT_VERSION = pkg.version;
 
 interface InitOptions {
   rpAlias?: boolean;
   noAlias?: boolean;
   global?: boolean;
+}
+
+/**
+ * Get the installed version of wdyt binary
+ */
+async function getInstalledVersion(binPath: string): Promise<string | null> {
+  try {
+    const result = await $`${binPath} --version 2>/dev/null`.text();
+    return result.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compare semver versions, returns true if v1 > v2
+ */
+function isNewerVersion(v1: string, v2: string): boolean {
+  const parse = (v: string) => v.split(".").map(Number);
+  const [a1, b1, c1] = parse(v1);
+  const [a2, b2, c2] = parse(v2);
+  if (a1 !== a2) return a1 > a2;
+  if (b1 !== b2) return b1 > b2;
+  return c1 > c2;
 }
 
 /**
@@ -102,25 +129,40 @@ export async function initCommand(options: InitOptions): Promise<{
     };
   }
 
-  // 2. Check if already installed globally
+  // 2. Check if already installed globally and compare versions
   const alreadyInstalled = await commandExists("wdyt");
+  const wdytPath = join(binDir, "wdyt");
+  let needsUpdate = false;
 
-  if (alreadyInstalled && !options.global) {
-    lines.push("");
-    lines.push("✓ wdyt is already available in PATH");
+  if (alreadyInstalled) {
+    const installedVersion = await getInstalledVersion(wdytPath);
+    if (installedVersion) {
+      if (isNewerVersion(CURRENT_VERSION, installedVersion)) {
+        lines.push("");
+        lines.push(`⚠️  Installed version: ${installedVersion}, available: ${CURRENT_VERSION}`);
+        lines.push("  Updating to latest version...");
+        needsUpdate = true;
+      } else if (!options.global) {
+        lines.push("");
+        lines.push(`✓ wdyt ${installedVersion} is already installed and up to date`);
+      }
+    } else if (!options.global) {
+      lines.push("");
+      lines.push("✓ wdyt is already available in PATH");
+    }
   }
 
-  // 3. Global install if requested
-  if (options.global) {
-    lines.push("");
-    lines.push("Installing globally...");
+  // 3. Global install if requested OR if update needed
+  if (options.global || needsUpdate) {
+    if (!needsUpdate) {
+      lines.push("");
+      lines.push("Installing globally...");
+    }
 
     try {
       // Ensure bin directory exists
       mkdirSync(binDir, { recursive: true });
 
-      // Get the path to the current executable or script
-      const currentExe = process.argv[1];
       const targetPath = join(binDir, "wdyt");
 
       // Build the binary
@@ -128,7 +170,7 @@ export async function initCommand(options: InitOptions): Promise<{
       const srcDir = join(import.meta.dir, "..");
       await $`bun build ${join(srcDir, "cli.ts")} --compile --outfile ${targetPath}`.quiet();
 
-      lines.push(`  ✓ Installed to ${targetPath}`);
+      lines.push(`  ✓ ${needsUpdate ? "Updated" : "Installed"} to ${targetPath} (v${CURRENT_VERSION})`);
 
       // Check if ~/.local/bin is in PATH
       const path = process.env.PATH || "";

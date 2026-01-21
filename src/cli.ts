@@ -15,6 +15,7 @@
 
 import { defineCommand, runMain } from "citty";
 import type { CLIFlags } from "./types";
+import pkg from "../package.json";
 import { windowsCommand } from "./commands/windows";
 import { builderCommand } from "./commands/builder";
 import {
@@ -179,7 +180,7 @@ if (args[0] === "init") {
   const main = defineCommand({
     meta: {
       name: "wdyt",
-      version: "0.1.0",
+      version: pkg.version,
       description: "Code review context builder for LLMs",
     },
     args: {
