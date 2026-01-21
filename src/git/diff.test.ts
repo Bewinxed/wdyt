@@ -39,8 +39,8 @@ describe("Git diff context", () => {
   beforeAll(async () => {
     await mkdir(FIXTURES_DIR, { recursive: true });
 
-    // Initialize git repo
-    await git(["init"], FIXTURES_DIR);
+    // Initialize git repo with explicit main branch
+    await git(["init", "-b", "main"], FIXTURES_DIR);
     await git(["config", "user.email", "test@test.com"], FIXTURES_DIR);
     await git(["config", "user.name", "Test User"], FIXTURES_DIR);
 
