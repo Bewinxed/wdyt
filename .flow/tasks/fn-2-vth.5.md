@@ -30,9 +30,8 @@ interface ChatResponse {
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Added verdict parsing to extract SHIP/NEEDS_WORK/MAJOR_RETHINK from Claude response using <verdict> XML tags. The ChatSendResponse now includes both the raw review text and the parsed verdict.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 48b85d30880aff7e1ac4ffa072175a221ec1e158
+- Tests: bun test, bun run build
 - PRs:

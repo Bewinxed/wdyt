@@ -7,10 +7,20 @@
     "fn-2-vth.1"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "48b85d30880aff7e1ac4ffa072175a221ec1e158"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test",
+      "bun run build"
+    ]
+  },
   "id": "fn-2-vth.5",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.5.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Verdict parsing",
-  "updated_at": "2026-01-21T11:05:24.334315Z"
+  "updated_at": "2026-01-21T11:13:01.424999Z"
 }
