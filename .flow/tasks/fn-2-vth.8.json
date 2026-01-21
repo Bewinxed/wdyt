@@ -9,10 +9,20 @@
     "fn-2-vth.7"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "0d339a7fb2e595c5892ff88699db0922852f6872"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test src/integration.test.ts",
+      "bun test"
+    ]
+  },
   "id": "fn-2-vth.8",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.8.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Integration test with flowctl",
-  "updated_at": "2026-01-21T11:47:28.242129Z"
+  "updated_at": "2026-01-21T13:19:17.472773Z"
 }

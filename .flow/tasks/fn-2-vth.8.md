@@ -37,9 +37,8 @@ rp-cli -w $W -t $T -e 'call chat_send {"message":"Review this","mode":"review"}'
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Added comprehensive end-to-end integration tests verifying wdyt works correctly with flowctl's rp-cli interface, covering the full pipeline (builder, select add, chat_send), context hints generation, git diff formatting, verdict parsing, re-review workflow with cache-busting preamble, and Flow-Next spec loading. All 21 integration tests pass along with 148 total tests.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0d339a7fb2e595c5892ff88699db0922852f6872
+- Tests: bun test src/integration.test.ts, bun test
 - PRs:
