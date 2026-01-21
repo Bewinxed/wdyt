@@ -16,12 +16,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Bewinxed/reepoproompt.git"
+    "url": "git+https://github.com/Bewinxed/wdyt.git"
   },
   "bugs": {
-    "url": "https://github.com/Bewinxed/reepoproompt/issues"
+    "url": "https://github.com/Bewinxed/wdyt/issues"
   },
-  "homepage": "https://github.com/Bewinxed/reepoproompt#readme",
+  "homepage": "https://github.com/Bewinxed/wdyt#readme",
   "keywords": [
     "code-review",
     "llm",
