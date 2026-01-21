@@ -102,6 +102,43 @@ async function commandExists(cmd: string): Promise<boolean> {
 }
 
 /**
+ * Check for conflicting rp-cli installations
+ * Returns the path if a non-wdyt rp-cli is found, null otherwise
+ */
+async function detectConflictingRpCli(targetBinDir: string): Promise<{
+  conflictPath: string | null;
+  isWdyt: boolean;
+}> {
+  try {
+    const whichResult = await $`which rp-cli 2>/dev/null`.text();
+    const rpCliPath = whichResult.trim();
+
+    if (!rpCliPath) {
+      return { conflictPath: null, isWdyt: false };
+    }
+
+    // If it's in our target directory, it's fine (we'll overwrite it)
+    if (rpCliPath.startsWith(targetBinDir)) {
+      return { conflictPath: null, isWdyt: true };
+    }
+
+    // Check if it's wdyt by testing --version or --help output
+    try {
+      const versionResult = await $`${rpCliPath} --help 2>&1`.text();
+      const isWdyt =
+        versionResult.includes("wdyt") ||
+        versionResult.includes("Code review context builder");
+      return { conflictPath: isWdyt ? null : rpCliPath, isWdyt };
+    } catch {
+      // If we can't run it, assume it's conflicting
+      return { conflictPath: rpCliPath, isWdyt: false };
+    }
+  } catch {
+    return { conflictPath: null, isWdyt: false };
+  }
+}
+
+/**
  * Run the init command
  */
 export async function initCommand(options: InitOptions): Promise<{
@@ -206,6 +243,31 @@ export async function initCommand(options: InitOptions): Promise<{
     const rpCliPath = join(binDir, "rp-cli");
     const secondOpinionPath = join(binDir, "wdyt");
 
+    // Check for conflicting rp-cli installations
+    const conflict = await detectConflictingRpCli(binDir);
+    if (conflict.conflictPath) {
+      lines.push("");
+      lines.push(`⚠️  WARNING: Another rp-cli found at ${conflict.conflictPath}`);
+      lines.push(`   This will shadow the wdyt alias since it appears earlier in PATH.`);
+      lines.push("");
+
+      // Detect common package managers and suggest removal
+      if (conflict.conflictPath.includes(".bun/bin")) {
+        lines.push("   To fix, remove the conflicting package:");
+        lines.push(`   bun remove -g rp-cli`);
+      } else if (conflict.conflictPath.includes(".npm") || conflict.conflictPath.includes("node_modules")) {
+        lines.push("   To fix, remove the conflicting package:");
+        lines.push(`   npm uninstall -g rp-cli`);
+      } else {
+        lines.push("   To fix, either:");
+        lines.push(`   1. Remove: rm ${conflict.conflictPath}`);
+        lines.push(`   2. Or add ${binDir} before it in your PATH`);
+      }
+      lines.push("");
+      lines.push("   After removing, run: hash -r && bunx wdyt init --rp-alias");
+      lines.push("");
+    }
+
     try {
       // Ensure bin directory exists
       mkdirSync(binDir, { recursive: true });
@@ -225,6 +287,12 @@ export async function initCommand(options: InitOptions): Promise<{
         const srcDir = join(import.meta.dir, "..");
         await $`bun build ${join(srcDir, "cli.ts")} --compile --outfile ${rpCliPath}`.quiet();
         lines.push(`  ✓ Installed rp-cli to ${rpCliPath}`);
+      }
+
+      // Remind about shell hash cache if there was a conflict
+      if (conflict.conflictPath) {
+        lines.push("");
+        lines.push("   Note: Run 'hash -r' or restart your shell to clear command cache.");
       }
     } catch (error) {
       lines.push(`  ✗ Failed to create alias: ${error}`);
