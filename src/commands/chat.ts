@@ -263,8 +263,8 @@ ${contextContent}
   await Bun.write(tempPromptPath, fullPrompt);
 
   try {
-    // Run claude CLI in print mode, reading from temp file
-    const result = await $`cat ${tempPromptPath} | claude -p`.text();
+    // Run claude CLI in print mode with no session persistence (one-off, not in /resume history)
+    const result = await $`cat ${tempPromptPath} | claude -p --no-session-persistence`.text();
 
     // Clean up temp file
     await $`rm ${tempPromptPath}`.quiet();
