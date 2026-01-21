@@ -319,9 +319,15 @@ export async function chatSendCommand(
     await Bun.write(chatPath, xmlContent);
 
     // Check if this is a review request - if so, run Claude CLI to do the review
-    const isReviewMode = payload.mode === "review";
+    // Triggers: mode="review", WDYT_REVIEW=1 env var, or --review in message
+    const isReviewMode = payload.mode === "review" ||
+                         payload.mode === "impl-review" ||
+                         process.env.WDYT_REVIEW === "1" ||
+                         prompt.includes("[REVIEW]");
 
     if (isReviewMode) {
+      console.error(`[wdyt] Review mode triggered (mode=${payload.mode}, env=${process.env.WDYT_REVIEW || "unset"})`);
+
       // Check if claude CLI is available
       if (!(await claudeCliAvailable())) {
         return {
@@ -331,7 +337,7 @@ export async function chatSendCommand(
       }
 
       // Run the review using Claude CLI
-      console.error("Running review with Claude CLI...");
+      console.error("[wdyt] Running review with Claude CLI...");
       const reviewOutput = await runClaudeReview(chatPath, prompt);
 
       return {
