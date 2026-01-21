@@ -34,3 +34,15 @@ export {
   type ContextHint,
   type GenerateHintsOptions,
 } from "./hints";
+
+// Re-review cache-busting
+export {
+  buildReReviewPreamble,
+  getChangedFiles,
+  detectReReview,
+  recordReview,
+  getPreviousReviewState,
+  clearReviewState,
+  processReReview,
+  type ReReviewOptions,
+} from "./rereview";

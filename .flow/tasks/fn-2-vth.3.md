@@ -28,9 +28,8 @@ Consider these related files:
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Implemented context hints generation module that combines symbol extraction and reference finding to identify related files affected by code changes, with output format matching flowctl's gather_context_hints(). Module limits to 15 hints prioritized by reference frequency.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 8bb2d78396fcbc6e13f2be41fff0637263989fb5
+- Tests: bun test src/context/hints.test.ts, bun test src/context/
 - PRs:

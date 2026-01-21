@@ -7,10 +7,20 @@
     "fn-2-vth.2"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "8bb2d78396fcbc6e13f2be41fff0637263989fb5"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test src/context/hints.test.ts",
+      "bun test src/context/"
+    ]
+  },
   "id": "fn-2-vth.3",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.3.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Context hints generation",
-  "updated_at": "2026-01-21T11:14:09.581130Z"
+  "updated_at": "2026-01-21T11:24:38.851460Z"
 }

@@ -23,6 +23,7 @@ import { join, dirname, basename } from "path";
 import { homedir } from "os";
 import { $ } from "bun";
 import { getTab, getWindow } from "../state";
+import { processReReview, recordReview } from "../context/rereview";
 
 /**
  * Chat send payload structure (from flowctl.py build_chat_payload)
@@ -32,7 +33,10 @@ export interface ChatSendPayload {
   mode: string;
   new_chat?: boolean;
   chat_name?: string;
+  chat_id?: string; // Continue specific chat by ID (for re-reviews)
   selected_paths?: string[];
+  base_branch?: string; // Base branch for changed files detection
+  review_type?: string; // Type of review for preamble (e.g., "implementation", "plan")
 }
 
 /**
@@ -48,6 +52,8 @@ export interface ChatSendResponse {
   path: string;
   review?: string;
   verdict?: Verdict;
+  isReReview?: boolean;
+  changedFiles?: string[];
 }
 
 /**
@@ -400,8 +406,24 @@ export async function chatSendCommand(
     const tab = await getTab(windowId, tabId);
     const window = await getWindow(windowId);
 
+    // Check for re-review scenario
+    // Re-review is detected when:
+    // - chat_id is provided (continuing a previous chat)
+    // - new_chat is explicitly false (not starting fresh)
+    const isReReviewExplicit = payload.chat_id !== undefined || payload.new_chat === false;
+    const reReviewResult = await processReReview({
+      chatId: payload.chat_id,
+      isReReview: isReReviewExplicit,
+      baseBranch: payload.base_branch,
+      reviewType: payload.review_type,
+    });
+
     // Use message from payload as the prompt, or fall back to tab's prompt
-    const prompt = payload.message || tab.prompt;
+    // Prepend re-review preamble if this is a re-review
+    let prompt = payload.message || tab.prompt;
+    if (reReviewResult.isReReview && reReviewResult.preamble) {
+      prompt = reReviewResult.preamble + prompt;
+    }
 
     // Determine which files to include
     // Use selected_paths from payload if provided, otherwise use tab's selectedFiles
@@ -448,6 +470,9 @@ export async function chatSendCommand(
     const chatPath = join(chatsDir, `${chatId}.xml`);
     await Bun.write(chatPath, xmlContent);
 
+    // Record this review for future re-review detection
+    recordReview(chatId, files.map((f) => f.path));
+
     // Always run Claude CLI to process the chat - that's what a drop-in rp-cli replacement does
     if (await claudeCliAvailable()) {
       const response = await runClaudeChat(chatPath, prompt);
@@ -457,7 +482,14 @@ export async function chatSendCommand(
 
       return {
         success: true,
-        data: { id: chatId, path: chatPath, review: response, verdict },
+        data: {
+          id: chatId,
+          path: chatPath,
+          review: response,
+          verdict,
+          isReReview: reReviewResult.isReReview,
+          changedFiles: reReviewResult.changedFiles,
+        },
         output: `Chat: \`${chatId}\`\n\n${response}`,
       };
     }
@@ -465,7 +497,12 @@ export async function chatSendCommand(
     // Fallback: just return the chat ID if Claude CLI isn't available
     return {
       success: true,
-      data: { id: chatId, path: chatPath },
+      data: {
+        id: chatId,
+        path: chatPath,
+        isReReview: reReviewResult.isReReview,
+        changedFiles: reReviewResult.changedFiles,
+      },
       output: `Chat: \`${chatId}\`\n\nContext exported to: ${chatPath}\n(Install Claude CLI for automatic LLM processing)`,
     };
   } catch (error) {
