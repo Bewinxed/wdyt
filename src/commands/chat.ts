@@ -87,39 +87,24 @@ async function claudeCliAvailable(): Promise<boolean> {
 }
 
 /**
- * Run a review using Claude CLI
- * Returns the review output including verdict
+ * Run a chat using Claude CLI
+ * Sends the prompt + context to Claude and returns the response
  */
-async function runClaudeReview(contextPath: string, prompt: string): Promise<string> {
+async function runClaudeChat(contextPath: string, prompt: string): Promise<string> {
   // Read the context file content first
   const contextFile = Bun.file(contextPath);
   const contextContent = await contextFile.text();
 
-  const reviewPrompt = `You are reviewing code changes. Analyze the following context and provide a thorough review.
-
-Review instructions:
-${prompt}
+  // Build the full prompt with context
+  const fullPrompt = `${prompt}
 
 <context>
 ${contextContent}
-</context>
-
-Analyze the code for:
-- Correctness - Logic errors, bugs, spec compliance
-- Security - Injection risks, auth gaps, data exposure
-- Simplicity - Over-engineering, unnecessary complexity
-- Edge cases - Failure modes, boundary conditions
-
-Provide findings organized by severity (Critical > Major > Minor).
-
-REQUIRED: End your review with exactly one verdict tag:
-<verdict>SHIP</verdict> - Code is production-ready
-<verdict>NEEDS_WORK</verdict> - Issues must be fixed first
-<verdict>MAJOR_RETHINK</verdict> - Fundamental problems require redesign`;
+</context>`;
 
   // Write prompt to temp file to avoid shell escaping issues
-  const tempPromptPath = join(getChatsDir(), `review-prompt-${Date.now()}.txt`);
-  await Bun.write(tempPromptPath, reviewPrompt);
+  const tempPromptPath = join(getChatsDir(), `prompt-${Date.now()}.txt`);
+  await Bun.write(tempPromptPath, fullPrompt);
 
   try {
     // Run claude CLI in print mode, reading from temp file
@@ -318,40 +303,24 @@ export async function chatSendCommand(
     const chatPath = join(chatsDir, `${chatId}.xml`);
     await Bun.write(chatPath, xmlContent);
 
-    // Check if this is a review request - if so, run Claude CLI to do the review
-    // Triggers: mode="review", WDYT_REVIEW=1 env var, or --review in message
-    const isReviewMode = payload.mode === "review" ||
-                         payload.mode === "impl-review" ||
-                         process.env.WDYT_REVIEW === "1" ||
-                         prompt.includes("[REVIEW]");
-
-    if (isReviewMode) {
-      console.error(`[wdyt] Review mode triggered (mode=${payload.mode}, env=${process.env.WDYT_REVIEW || "unset"})`);
-
-      // Check if claude CLI is available
-      if (!(await claudeCliAvailable())) {
-        return {
-          success: false,
-          error: "Review mode requires Claude CLI (claude) to be installed and in PATH",
-        };
-      }
-
-      // Run the review using Claude CLI
-      console.error("[wdyt] Running review with Claude CLI...");
-      const reviewOutput = await runClaudeReview(chatPath, prompt);
+    // Always run Claude CLI to process the chat - that's what a drop-in rp-cli replacement does
+    if (await claudeCliAvailable()) {
+      console.error("[wdyt] Processing with Claude CLI...");
+      const response = await runClaudeChat(chatPath, prompt);
 
       return {
         success: true,
-        data: { id: chatId, path: chatPath, review: reviewOutput },
-        output: `Chat: \`${chatId}\`\n\n${reviewOutput}`,
+        data: { id: chatId, path: chatPath, review: response },
+        output: `Chat: \`${chatId}\`\n\n${response}`,
       };
     }
 
-    // Return in the expected format: Chat: `<uuid>`
+    // Fallback: just return the chat ID if Claude CLI isn't available
+    console.error("[wdyt] Claude CLI not found, returning context only");
     return {
       success: true,
       data: { id: chatId, path: chatPath },
-      output: `Chat: \`${chatId}\``,
+      output: `Chat: \`${chatId}\`\n\nContext exported to: ${chatPath}\n(Install Claude CLI for automatic LLM processing)`,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
