@@ -7,10 +7,19 @@
     "fn-2-vth.4"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "021a2cb7ec1136b11c880fa4b41ebf122f895b3c"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test src/flow/specs.test.ts"
+    ]
+  },
   "id": "fn-2-vth.7",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.7.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Flow-Next spec loading",
-  "updated_at": "2026-01-21T11:38:00.807831Z"
+  "updated_at": "2026-01-21T11:46:20.443778Z"
 }

@@ -1,7 +1,7 @@
 {
-  "assignee": null,
+  "assignee": "bewinxed@gmail.com",
   "claim_note": "",
-  "claimed_at": null,
+  "claimed_at": "2026-01-21T11:47:28.242090Z",
   "created_at": "2026-01-21T09:32:03.802112Z",
   "depends_on": [
     "fn-2-vth.3",
@@ -12,7 +12,7 @@
   "id": "fn-2-vth.8",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.8.md",
-  "status": "todo",
+  "status": "in_progress",
   "title": "Integration test with flowctl",
-  "updated_at": "2026-01-21T09:33:49.847518Z"
+  "updated_at": "2026-01-21T11:47:28.242129Z"
 }
