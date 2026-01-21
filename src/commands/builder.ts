@@ -19,7 +19,12 @@ export interface BuilderResponse {
 
 /**
  * Parse builder JSON argument
- * @param args - JSON string like {"summary": "test"}
+ * Handles formats:
+ * - {} or {"summary": "..."}  (JSON object)
+ * - "summary text"            (JSON string - flowctl format)
+ * - "summary" --response-type review  (flowctl with flags - flags ignored)
+ *
+ * @param args - JSON string or object
  * @returns Parsed BuilderConfig or null if invalid
  */
 function parseBuilderArgs(args?: string): BuilderConfig | null {
@@ -28,9 +33,25 @@ function parseBuilderArgs(args?: string): BuilderConfig | null {
     return {};
   }
 
+  let jsonPart = args.trim();
+
+  // Strip --response-type flag if present (not supported, but don't fail)
+  // flowctl passes: "summary" --response-type review
+  const responseTypeMatch = jsonPart.match(/^(.+?)\s+--response-type\s+\w+$/);
+  if (responseTypeMatch) {
+    jsonPart = responseTypeMatch[1].trim();
+  }
+
   try {
-    const config = JSON.parse(args.trim()) as BuilderConfig;
-    return config;
+    const parsed = JSON.parse(jsonPart);
+
+    // If parsed is a string, convert to BuilderConfig with summary
+    if (typeof parsed === "string") {
+      return { summary: parsed };
+    }
+
+    // Otherwise expect an object
+    return parsed as BuilderConfig;
   } catch {
     return null;
   }
