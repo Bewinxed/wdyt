@@ -1,6 +1,6 @@
 {
   "name": "wdyt",
-  "version": "0.1.11",
+  "version": "0.1.13",
   "type": "module",
   "description": "Code review context builder for LLMs - what do you think?",
   "license": "MIT",
@@ -45,7 +45,8 @@
     "prepublishOnly": "bun test"
   },
   "dependencies": {
-    "citty": "^0.1.6"
+    "citty": "^0.1.6",
+    "shell-quote": "^1.8.3"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0"

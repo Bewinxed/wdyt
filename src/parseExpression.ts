@@ -7,61 +7,35 @@
  */
 
 import { parseArgs } from "node:util";
+import { parse as shellParse } from "shell-quote";
 
 /**
- * Tokenize a shell-like string, respecting quotes
- * "builder \"hello world\" --flag" -> ["builder", "hello world", "--flag"]
+ * Tokenize a shell-like string
+ *
+ * Uses shell-quote for most parsing, but preserves JSON objects literally
+ * since shell-quote would strip internal quotes from JSON.
  */
 export function tokenize(input: string): string[] {
-  const tokens: string[] = [];
-  let current = "";
-  let inQuote: string | null = null;
-  let escape = false;
+  // Check if input contains a JSON object (starts with {)
+  const jsonStart = input.indexOf("{");
 
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
+  if (jsonStart !== -1) {
+    // Split into pre-JSON and JSON parts
+    const preJson = input.slice(0, jsonStart).trim();
+    const jsonPart = input.slice(jsonStart);
 
-    if (escape) {
-      current += char;
-      escape = false;
-      continue;
-    }
+    // Parse the pre-JSON part with shell-quote
+    const preTokens = preJson
+      ? shellParse(preJson).filter((t): t is string => typeof t === "string")
+      : [];
 
-    if (char === "\\") {
-      escape = true;
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      if (inQuote === char) {
-        // End of quoted string
-        inQuote = null;
-      } else if (inQuote === null) {
-        // Start of quoted string
-        inQuote = char;
-      } else {
-        // Different quote inside a quoted string
-        current += char;
-      }
-      continue;
-    }
-
-    if (char === " " && inQuote === null) {
-      if (current) {
-        tokens.push(current);
-        current = "";
-      }
-      continue;
-    }
-
-    current += char;
+    // Keep the JSON part as-is
+    return [...preTokens, jsonPart];
   }
 
-  if (current) {
-    tokens.push(current);
-  }
-
-  return tokens;
+  // No JSON, use shell-quote for everything
+  const parsed = shellParse(input);
+  return parsed.filter((t): t is string => typeof t === "string");
 }
 
 /**
