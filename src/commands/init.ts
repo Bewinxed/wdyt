@@ -1,11 +1,11 @@
 /**
- * Init command - set up second-opinion
+ * Init command - set up wdyt
  *
  * Usage:
- *   bunx second-opinion init              # Interactive setup
- *   bunx second-opinion init --rp-alias   # Also create rp-cli alias (skip prompt)
- *   bunx second-opinion init --no-alias   # Skip rp-cli alias (no prompt)
- *   bunx second-opinion init --global     # Install globally
+ *   bunx wdyt init              # Interactive setup
+ *   bunx wdyt init --rp-alias   # Also create rp-cli alias (skip prompt)
+ *   bunx wdyt init --no-alias   # Skip rp-cli alias (no prompt)
+ *   bunx wdyt init --global     # Install globally
  */
 
 import { mkdirSync, existsSync, symlinkSync, unlinkSync } from "fs";
@@ -50,9 +50,9 @@ async function promptYesNo(question: string, defaultYes = false): Promise<boolea
 function getDataDir(): string {
   const xdgDataHome = process.env.XDG_DATA_HOME;
   if (xdgDataHome) {
-    return join(xdgDataHome, "second-opinion");
+    return join(xdgDataHome, "wdyt");
   }
-  return join(homedir(), ".second-opinion");
+  return join(homedir(), ".wdyt");
 }
 
 /**
@@ -86,7 +86,7 @@ export async function initCommand(options: InitOptions): Promise<{
   const dataDir = getDataDir();
   const binDir = getUserBinDir();
 
-  lines.push("🔍 second-opinion - Code review context builder for LLMs");
+  lines.push("🔍 wdyt - Code review context builder for LLMs");
   lines.push("");
 
   // 1. Create data directory
@@ -103,11 +103,11 @@ export async function initCommand(options: InitOptions): Promise<{
   }
 
   // 2. Check if already installed globally
-  const alreadyInstalled = await commandExists("second-opinion");
+  const alreadyInstalled = await commandExists("wdyt");
 
   if (alreadyInstalled && !options.global) {
     lines.push("");
-    lines.push("✓ second-opinion is already available in PATH");
+    lines.push("✓ wdyt is already available in PATH");
   }
 
   // 3. Global install if requested
@@ -121,7 +121,7 @@ export async function initCommand(options: InitOptions): Promise<{
 
       // Get the path to the current executable or script
       const currentExe = process.argv[1];
-      const targetPath = join(binDir, "second-opinion");
+      const targetPath = join(binDir, "wdyt");
 
       // Build the binary
       lines.push("  Building binary...");
@@ -162,7 +162,7 @@ export async function initCommand(options: InitOptions): Promise<{
     lines.push("Creating rp-cli alias (for flowctl compatibility)...");
 
     const rpCliPath = join(binDir, "rp-cli");
-    const secondOpinionPath = join(binDir, "second-opinion");
+    const secondOpinionPath = join(binDir, "wdyt");
 
     try {
       // Ensure bin directory exists
@@ -173,10 +173,10 @@ export async function initCommand(options: InitOptions): Promise<{
         unlinkSync(rpCliPath);
       }
 
-      // Check if second-opinion binary exists
+      // Check if wdyt binary exists
       if (existsSync(secondOpinionPath)) {
         symlinkSync(secondOpinionPath, rpCliPath);
-        lines.push(`  ✓ Created symlink: rp-cli -> second-opinion`);
+        lines.push(`  ✓ Created symlink: rp-cli -> wdyt`);
       } else {
         // If not installed globally, create the binary first
         lines.push("  Building rp-cli binary...");
@@ -194,14 +194,14 @@ export async function initCommand(options: InitOptions): Promise<{
   lines.push("Setup complete! 🎉");
   lines.push("");
   lines.push("Usage:");
-  lines.push("  second-opinion -e 'windows'              # List windows");
-  lines.push("  second-opinion -w 1 -e 'builder {}'      # Create tab");
-  lines.push("  second-opinion -w 1 -t <id> -e 'select add file.ts'");
+  lines.push("  wdyt -e 'windows'              # List windows");
+  lines.push("  wdyt -w 1 -e 'builder {}'      # Create tab");
+  lines.push("  wdyt -w 1 -t <id> -e 'select add file.ts'");
   lines.push("");
 
   if (!shouldCreateAlias && !options.noAlias) {
     lines.push("Tip: For flowctl/flow-next compatibility, run:");
-    lines.push("  bunx second-opinion init --rp-alias");
+    lines.push("  bunx wdyt init --rp-alias");
   }
 
   return {

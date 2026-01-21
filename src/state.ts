@@ -1,8 +1,8 @@
 /**
- * State management layer for second-opinion
+ * State management layer for wdyt
  *
  * Persists windows, tabs, and selections to disk.
- * State is stored in ~/.second-opinion/state.json (or XDG_DATA_HOME/second-opinion/state.json)
+ * State is stored in ~/.wdyt/state.json (or XDG_DATA_HOME/wdyt/state.json)
  */
 
 import { join } from "path";
@@ -14,14 +14,14 @@ const STATE_VERSION = 1;
 
 /**
  * Get the data directory path
- * Uses XDG_DATA_HOME if set, otherwise falls back to ~/.second-opinion
+ * Uses XDG_DATA_HOME if set, otherwise falls back to ~/.wdyt
  */
 function getDataDir(): string {
   const xdgDataHome = process.env.XDG_DATA_HOME;
   if (xdgDataHome) {
-    return join(xdgDataHome, "second-opinion");
+    return join(xdgDataHome, "wdyt");
   }
-  return join(homedir(), ".second-opinion");
+  return join(homedir(), ".wdyt");
 }
 
 /**

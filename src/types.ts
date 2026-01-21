@@ -1,5 +1,5 @@
 /**
- * Types for second-opinion - Code review context builder for LLMs
+ * Types for wdyt - Code review context builder for LLMs
  */
 
 /** Tab within a window */

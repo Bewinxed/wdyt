@@ -1,4 +1,4 @@
-# second-opinion
+# wdyt
 
 Code review context builder for LLMs - get a second opinion on your code.
 
@@ -8,29 +8,29 @@ A CLI tool that exports code context for AI review, compatible with flowctl/flow
 
 ```bash
 # Run directly with bunx (recommended)
-bunx second-opinion init
+bunx wdyt init
 
 # Or install globally
-bun add -g second-opinion
+bun add -g wdyt
 ```
 
 ## Quick Start
 
 ```bash
 # Interactive setup - creates data directory and optionally adds rp-cli alias
-bunx second-opinion init
+bunx wdyt init
 
 # List windows
-second-opinion -e 'windows'
+wdyt -e 'windows'
 
 # Create a new tab in window 1
-second-opinion -w 1 -e 'builder {}'
+wdyt -w 1 -e 'builder {}'
 
 # Add files to selection
-second-opinion -w 1 -t <tab-id> -e 'select add src/cli.ts'
+wdyt -w 1 -t <tab-id> -e 'select add src/cli.ts'
 
 # Export context for review
-second-opinion -w 1 -t <tab-id> -e 'call chat_send {"mode":"review"}'
+wdyt -w 1 -t <tab-id> -e 'call chat_send {"mode":"review"}'
 ```
 
 ## Commands
@@ -38,10 +38,10 @@ second-opinion -w 1 -t <tab-id> -e 'call chat_send {"mode":"review"}'
 ### Setup
 
 ```bash
-second-opinion init              # Interactive setup
-second-opinion init --global     # Install binary globally
-second-opinion init --rp-alias   # Create rp-cli alias (for flowctl)
-second-opinion init --no-alias   # Skip rp-cli alias prompt
+wdyt init              # Interactive setup
+wdyt init --global     # Install binary globally
+wdyt init --rp-alias   # Create rp-cli alias (for flowctl)
+wdyt init --no-alias   # Skip rp-cli alias prompt
 ```
 
 ### Expressions
@@ -71,7 +71,7 @@ This tool is compatible with [flow-next](https://github.com/gmickel/claude-marke
 
 ```bash
 # Create the rp-cli alias during init
-bunx second-opinion init --rp-alias
+bunx wdyt init --rp-alias
 ```
 
 ## Requirements

@@ -1,13 +1,13 @@
 {
-  "name": "second-opinion",
+  "name": "wdyt",
   "version": "0.1.0",
   "type": "module",
-  "description": "Code review context builder for LLMs - get a second opinion on your code",
+  "description": "Code review context builder for LLMs - what do you think?",
   "license": "MIT",
-  "author": "user",
+  "author": "bewinxed",
   "main": "src/cli.ts",
   "bin": {
-    "second-opinion": "./src/cli.ts"
+    "wdyt": "./src/cli.ts"
   },
   "files": [
     "src/**/*.ts",
@@ -16,12 +16,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/user/second-opinion.git"
+    "url": "git+https://github.com/Bewinxed/reepoproompt.git"
   },
   "bugs": {
-    "url": "https://github.com/user/second-opinion/issues"
+    "url": "https://github.com/Bewinxed/reepoproompt/issues"
   },
-  "homepage": "https://github.com/user/second-opinion#readme",
+  "homepage": "https://github.com/Bewinxed/reepoproompt#readme",
   "keywords": [
     "code-review",
     "llm",
@@ -39,7 +39,7 @@
   },
   "scripts": {
     "dev": "bun run src/cli.ts",
-    "build": "bun build ./src/cli.ts --compile --outfile second-opinion",
+    "build": "bun build ./src/cli.ts --compile --outfile wdyt",
     "test": "bun test",
     "prepublishOnly": "bun test"
   },

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * second-opinion - Code review context builder for LLMs
+ * wdyt - Code review context builder for LLMs
  *
  * Get a second opinion on your code by building context for AI review.
  * Compatible with flowctl.py (rp-cli interface).
@@ -178,7 +178,7 @@ if (args[0] === "init") {
   // Only run citty for non-init commands
   const main = defineCommand({
     meta: {
-      name: "second-opinion",
+      name: "wdyt",
       version: "0.1.0",
       description: "Code review context builder for LLMs",
     },
@@ -221,18 +221,18 @@ if (args[0] === "init") {
 
       // If no expression, show help message
       if (!flags.expression) {
-        console.log("second-opinion - Code review context builder for LLMs");
+        console.log("wdyt - Code review context builder for LLMs");
         console.log("");
         console.log("Setup:");
-        console.log("  second-opinion init              # Interactive setup (prompts for options)");
-        console.log("  second-opinion init --global     # Install binary globally");
-        console.log("  second-opinion init --rp-alias   # Create rp-cli alias (for flowctl)");
-        console.log("  second-opinion init --no-alias   # Skip rp-cli alias prompt");
+        console.log("  wdyt init              # Interactive setup (prompts for options)");
+        console.log("  wdyt init --global     # Install binary globally");
+        console.log("  wdyt init --rp-alias   # Create rp-cli alias (for flowctl)");
+        console.log("  wdyt init --no-alias   # Skip rp-cli alias prompt");
         console.log("");
         console.log("Usage:");
-        console.log("  second-opinion --raw-json -e <expression>");
-        console.log("  second-opinion -w <window> -e <expression>");
-        console.log("  second-opinion -w <window> -t <tab> -e <expression>");
+        console.log("  wdyt --raw-json -e <expression>");
+        console.log("  wdyt -w <window> -e <expression>");
+        console.log("  wdyt -w <window> -t <tab> -e <expression>");
         console.log("");
         console.log("Expressions:");
         console.log("  windows                    List all windows");
