@@ -1,7 +1,7 @@
 {
-  "assignee": null,
+  "assignee": "bewinxed@gmail.com",
   "claim_note": "",
-  "claimed_at": null,
+  "claimed_at": "2026-01-21T11:38:00.807790Z",
   "created_at": "2026-01-21T09:32:03.366082Z",
   "depends_on": [
     "fn-2-vth.4"
@@ -10,7 +10,7 @@
   "id": "fn-2-vth.7",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.7.md",
-  "status": "todo",
+  "status": "in_progress",
   "title": "Flow-Next spec loading",
-  "updated_at": "2026-01-21T09:33:49.296973Z"
+  "updated_at": "2026-01-21T11:38:00.807831Z"
 }

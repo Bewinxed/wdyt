@@ -32,9 +32,8 @@ Use your file reading tools to get the CURRENT content of these files.
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Added re-review cache-busting module that detects when a chat is continuing a previous review and prepends a preamble instructing the model to re-read changed files, preventing stale cache issues.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 5873efc926b6668df90c5205518e73f916f3c64d
+- Tests: bun test src/context/rereview.test.ts, bun test
 - PRs:

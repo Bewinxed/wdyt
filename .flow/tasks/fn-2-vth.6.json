@@ -7,10 +7,20 @@
     "fn-2-vth.5"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "5873efc926b6668df90c5205518e73f916f3c64d"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test src/context/rereview.test.ts",
+      "bun test"
+    ]
+  },
   "id": "fn-2-vth.6",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.6.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Re-review cache-busting",
-  "updated_at": "2026-01-21T11:25:47.756022Z"
+  "updated_at": "2026-01-21T11:37:21.145053Z"
 }
