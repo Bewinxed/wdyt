@@ -3,26 +3,45 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Code review context builder for LLMs - get a second opinion on your code",
+  "license": "MIT",
+  "author": "user",
   "main": "src/cli.ts",
   "bin": {
     "second-opinion": "./src/cli.ts"
   },
+  "files": [
+    "src/**/*.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/user/second-opinion"
+    "url": "git+https://github.com/user/second-opinion.git"
   },
+  "bugs": {
+    "url": "https://github.com/user/second-opinion/issues"
+  },
+  "homepage": "https://github.com/user/second-opinion#readme",
   "keywords": [
     "code-review",
     "llm",
     "context",
     "ai",
     "claude",
-    "cli"
+    "cli",
+    "bun"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "bun run src/cli.ts",
-    "build": "bun build ./src/cli.ts --compile --outfile rp-cli",
-    "test": "bun test"
+    "build": "bun build ./src/cli.ts --compile --outfile second-opinion",
+    "test": "bun test",
+    "prepublishOnly": "bun test"
   },
   "dependencies": {
     "citty": "^0.1.6"
