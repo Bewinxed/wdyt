@@ -36,12 +36,18 @@ export interface ChatSendPayload {
 }
 
 /**
+ * Verdict type for code reviews
+ */
+export type Verdict = "SHIP" | "NEEDS_WORK" | "MAJOR_RETHINK";
+
+/**
  * Chat send response
  */
 export interface ChatSendResponse {
   id: string;
   path: string;
   review?: string;
+  verdict?: Verdict;
 }
 
 /**
@@ -205,6 +211,22 @@ async function loadSkillPrompt(skillName: string): Promise<string> {
   }
 
   throw new Error(`Skill not found: ${skillName}`);
+}
+
+/**
+ * Parse verdict from Claude's response
+ * Looks for <verdict>SHIP|NEEDS_WORK|MAJOR_RETHINK</verdict> tag
+ *
+ * @param response - The raw response from Claude
+ * @returns The parsed verdict or undefined if not found
+ */
+function parseVerdict(response: string): Verdict | undefined {
+  const verdictMatch = response.match(/<verdict>(SHIP|NEEDS_WORK|MAJOR_RETHINK)<\/verdict>/i);
+  if (verdictMatch) {
+    // Normalize to uppercase since the regex is case-insensitive
+    return verdictMatch[1].toUpperCase() as Verdict;
+  }
+  return undefined;
 }
 
 /**
@@ -430,9 +452,12 @@ export async function chatSendCommand(
     if (await claudeCliAvailable()) {
       const response = await runClaudeChat(chatPath, prompt);
 
+      // Parse verdict from response
+      const verdict = parseVerdict(response);
+
       return {
         success: true,
-        data: { id: chatId, path: chatPath, review: response },
+        data: { id: chatId, path: chatPath, review: response, verdict },
         output: `Chat: \`${chatId}\`\n\n${response}`,
       };
     }

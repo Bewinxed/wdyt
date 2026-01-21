@@ -1,7 +1,7 @@
 {
-  "assignee": null,
+  "assignee": "bewinxed@gmail.com",
   "claim_note": "",
-  "claimed_at": null,
+  "claimed_at": "2026-01-21T11:05:24.334278Z",
   "created_at": "2026-01-21T09:32:02.428195Z",
   "depends_on": [
     "fn-2-vth.1"
@@ -10,7 +10,7 @@
   "id": "fn-2-vth.5",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.5.md",
-  "status": "todo",
+  "status": "in_progress",
   "title": "Verdict parsing",
-  "updated_at": "2026-01-21T09:33:48.259557Z"
+  "updated_at": "2026-01-21T11:05:24.334315Z"
 }

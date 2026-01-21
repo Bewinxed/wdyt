@@ -42,9 +42,8 @@ src/types.ts
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Implemented git diff context injection module at src/git/diff.ts that gathers git context for code reviews. The module extracts diff stats, commit history, changed files, and branch name, then formats them as XML blocks matching the flowctl output format. All 18 unit tests pass.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 5cb43860a9d65f3aa2805297e3e981f0b96222a4
+- Tests: bun test src/git/diff.test.ts
 - PRs:

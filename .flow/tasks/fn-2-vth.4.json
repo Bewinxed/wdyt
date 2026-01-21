@@ -7,10 +7,19 @@
     "fn-2-vth.1"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "5cb43860a9d65f3aa2805297e3e981f0b96222a4"
+    ],
+    "prs": [],
+    "tests": [
+      "bun test src/git/diff.test.ts"
+    ]
+  },
   "id": "fn-2-vth.4",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.4.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Git diff context injection",
-  "updated_at": "2026-01-21T10:59:34.517050Z"
+  "updated_at": "2026-01-21T11:04:53.749123Z"
 }
