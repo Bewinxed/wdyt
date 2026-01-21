@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-01-21T09:32:02.074327Z",
+  "depends_on": [
+    "fn-2-vth.1"
+  ],
+  "epic": "fn-2-vth",
+  "id": "fn-2-vth.4",
+  "priority": null,
+  "spec_path": ".flow/tasks/fn-2-vth.4.md",
+  "status": "todo",
+  "title": "Git diff context injection",
+  "updated_at": "2026-01-21T09:33:47.866484Z"
+}

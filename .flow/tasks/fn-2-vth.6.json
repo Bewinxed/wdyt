@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-01-21T09:32:02.845091Z",
+  "depends_on": [
+    "fn-2-vth.5"
+  ],
+  "epic": "fn-2-vth",
+  "id": "fn-2-vth.6",
+  "priority": null,
+  "spec_path": ".flow/tasks/fn-2-vth.6.md",
+  "status": "todo",
+  "title": "Re-review cache-busting",
+  "updated_at": "2026-01-21T09:33:48.676102Z"
+}
