@@ -24,6 +24,7 @@ import {
 } from "./commands/prompt";
 import { selectGetCommand, selectAddCommand } from "./commands/select";
 import { chatSendCommand } from "./commands/chat";
+import { initCommand, parseInitArgs } from "./commands/init";
 
 /**
  * Parse and execute an expression
@@ -160,86 +161,107 @@ function formatOutput(
   return `Error: ${result.error}`;
 }
 
-const main = defineCommand({
-  meta: {
-    name: "second-opinion",
-    version: "0.1.0",
-    description: "Code review context builder for LLMs",
-  },
-  args: {
-    "raw-json": {
-      type: "boolean",
-      description: "Output raw JSON (no formatting)",
-      default: false,
-    },
-    w: {
-      type: "string",
-      description: "Window ID",
-    },
-    t: {
-      type: "string",
-      description: "Tab ID",
-    },
-    e: {
-      type: "string",
-      description: "Expression to execute",
-    },
-  },
-  async run({ args }) {
-    // Parse and validate window ID
-    let windowId: number | undefined;
-    if (args.w) {
-      windowId = parseInt(args.w, 10);
-      if (isNaN(windowId) || windowId < 1) {
-        console.error(`Error: Invalid window ID "${args.w}". Must be a positive integer.`);
-        process.exit(1);
-      }
-    }
-
-    const flags: CLIFlags = {
-      rawJson: args["raw-json"],
-      window: windowId,
-      tab: args.t,
-      expression: args.e,
-    };
-
-    // If no expression, show help message
-    if (!flags.expression) {
-      console.log("second-opinion - Code review context builder for LLMs");
-      console.log("");
-      console.log("Usage:");
-      console.log("  second-opinion --raw-json -e <expression>");
-      console.log("  second-opinion -w <window> -e <expression>");
-      console.log("  second-opinion -w <window> -t <tab> -e <expression>");
-      console.log("");
-      console.log("Expressions:");
-      console.log("  windows                    List all windows");
-      console.log('  builder {"summary":"..."}  Create a new tab');
-      console.log("  prompt get                 Get current prompt");
-      console.log('  prompt set "text"          Set prompt text');
-      console.log("  prompt export              Export prompt as XML");
-      console.log("  select get                 Get selected files");
-      console.log('  select add "path"          Add file to selection');
-      console.log("  call chat_send {...}       Export context for chat");
-      console.log("");
-      console.log("Flags:");
-      console.log("  --raw-json    Output raw JSON");
-      console.log("  -w <id>       Window ID");
-      console.log("  -t <id>       Tab ID");
-      console.log("  -e <expr>     Expression to execute");
+// Check if init command and handle it before citty
+const args = process.argv.slice(2);
+if (args[0] === "init") {
+  const options = parseInitArgs(args.slice(1));
+  initCommand(options).then((result) => {
+    if (result.success) {
+      console.log(result.output);
       process.exit(0);
-    }
-
-    // Execute expression
-    const result = await executeExpression(flags.expression, flags);
-    const output = formatOutput(result, flags.rawJson);
-    console.log(output);
-
-    // Exit with code 1 on error
-    if (!result.success) {
+    } else {
+      console.error(result.error);
       process.exit(1);
     }
-  },
-});
+  });
+} else {
+  // Only run citty for non-init commands
+  const main = defineCommand({
+    meta: {
+      name: "second-opinion",
+      version: "0.1.0",
+      description: "Code review context builder for LLMs",
+    },
+    args: {
+      "raw-json": {
+        type: "boolean",
+        description: "Output raw JSON (no formatting)",
+        default: false,
+      },
+      w: {
+        type: "string",
+        description: "Window ID",
+      },
+      t: {
+        type: "string",
+        description: "Tab ID",
+      },
+      e: {
+        type: "string",
+        description: "Expression to execute",
+      },
+    },
+    async run({ args }) {
+      // Parse and validate window ID
+      let windowId: number | undefined;
+      if (args.w) {
+        windowId = parseInt(args.w, 10);
+        if (isNaN(windowId) || windowId < 1) {
+          console.error(`Error: Invalid window ID "${args.w}". Must be a positive integer.`);
+          process.exit(1);
+        }
+      }
 
-runMain(main);
+      const flags: CLIFlags = {
+        rawJson: args["raw-json"],
+        window: windowId,
+        tab: args.t,
+        expression: args.e,
+      };
+
+      // If no expression, show help message
+      if (!flags.expression) {
+        console.log("second-opinion - Code review context builder for LLMs");
+        console.log("");
+        console.log("Setup:");
+        console.log("  second-opinion init              # Interactive setup (prompts for options)");
+        console.log("  second-opinion init --global     # Install binary globally");
+        console.log("  second-opinion init --rp-alias   # Create rp-cli alias (for flowctl)");
+        console.log("  second-opinion init --no-alias   # Skip rp-cli alias prompt");
+        console.log("");
+        console.log("Usage:");
+        console.log("  second-opinion --raw-json -e <expression>");
+        console.log("  second-opinion -w <window> -e <expression>");
+        console.log("  second-opinion -w <window> -t <tab> -e <expression>");
+        console.log("");
+        console.log("Expressions:");
+        console.log("  windows                    List all windows");
+        console.log('  builder {"summary":"..."}  Create a new tab');
+        console.log("  prompt get                 Get current prompt");
+        console.log("  prompt export <file>       Export prompt to file");
+        console.log("  select get                 Get selected files");
+        console.log('  select add "path"          Add file to selection');
+        console.log("  call chat_send {...}       Export context for review");
+        console.log("");
+        console.log("Flags:");
+        console.log("  --raw-json    Output raw JSON");
+        console.log("  -w <id>       Window ID");
+        console.log("  -t <id>       Tab ID");
+        console.log("  -e <expr>     Expression to execute");
+        process.exit(0);
+      }
+
+      // Execute expression
+      const result = await executeExpression(flags.expression, flags);
+      const output = formatOutput(result, flags.rawJson);
+      console.log(output);
+
+      // Exit with code 1 on error
+      if (!result.success) {
+        process.exit(1);
+      }
+    },
+  });
+
+  runMain(main);
+}

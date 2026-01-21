@@ -5,9 +5,20 @@
   "description": "Code review context builder for LLMs - get a second opinion on your code",
   "main": "src/cli.ts",
   "bin": {
-    "second-opinion": "./src/cli.ts",
-    "rp-cli": "./src/cli.ts"
+    "second-opinion": "./src/cli.ts"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/user/second-opinion"
+  },
+  "keywords": [
+    "code-review",
+    "llm",
+    "context",
+    "ai",
+    "claude",
+    "cli"
+  ],
   "scripts": {
     "dev": "bun run src/cli.ts",
     "build": "bun build ./src/cli.ts --compile --outfile rp-cli",
