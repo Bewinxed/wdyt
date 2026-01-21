@@ -317,13 +317,8 @@ export async function chatSendCommand(
       }
     }
 
-    // Log any skipped files to stderr so users are aware
-    if (errors.length > 0) {
-      console.error(`Warning: ${errors.length} file(s) skipped:`);
-      for (const err of errors) {
-        console.error(`  ${err}`);
-      }
-    }
+    // Note: Skipped files are silently ignored to avoid polluting stderr
+    // The files array contains only successfully read files
 
     // Build directory structure from the files we successfully read
     const directoryStructure = buildDirectoryStructure(files.map((f) => f.path));
@@ -344,7 +339,6 @@ export async function chatSendCommand(
 
     // Always run Claude CLI to process the chat - that's what a drop-in rp-cli replacement does
     if (await claudeCliAvailable()) {
-      console.error("[wdyt] Processing with Claude CLI...");
       const response = await runClaudeChat(chatPath, prompt);
 
       return {
@@ -355,7 +349,6 @@ export async function chatSendCommand(
     }
 
     // Fallback: just return the chat ID if Claude CLI isn't available
-    console.error("[wdyt] Claude CLI not found, returning context only");
     return {
       success: true,
       data: { id: chatId, path: chatPath },
