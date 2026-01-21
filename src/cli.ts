@@ -25,7 +25,6 @@ import {
 } from "./commands/prompt";
 import { selectGetCommand, selectAddCommand } from "./commands/select";
 import { chatSendCommand } from "./commands/chat";
-import { initCommand, parseInitArgs } from "./commands/init";
 import { parseExpression } from "./parseExpression";
 
 /**
@@ -169,22 +168,7 @@ function formatOutput(
   return `Error: ${result.error}`;
 }
 
-// Check if init command and handle it before citty
-const args = process.argv.slice(2);
-if (args[0] === "init") {
-  const options = parseInitArgs(args.slice(1));
-  initCommand(options).then((result) => {
-    if (result.success) {
-      console.log(result.output);
-      process.exit(0);
-    } else {
-      console.error(result.error);
-      process.exit(1);
-    }
-  });
-} else {
-  // Only run citty for non-init commands
-  const main = defineCommand({
+const main = defineCommand({
     meta: {
       name: "wdyt",
       version: pkg.version,
@@ -231,11 +215,8 @@ if (args[0] === "init") {
       if (!flags.expression) {
         console.log("wdyt - Code review context builder for LLMs");
         console.log("");
-        console.log("Setup:");
-        console.log("  wdyt init              # Interactive setup (prompts for options)");
-        console.log("  wdyt init --global     # Install binary globally");
-        console.log("  wdyt init --rp-alias   # Create rp-cli alias (for flowctl)");
-        console.log("  wdyt init --no-alias   # Skip rp-cli alias prompt");
+        console.log("Install:");
+        console.log("  bun add -g wdyt        # Install globally (creates wdyt + rp-cli)");
         console.log("");
         console.log("Usage:");
         console.log("  wdyt --raw-json -e <expression>");
@@ -269,7 +250,6 @@ if (args[0] === "init") {
         process.exit(1);
       }
     },
-  });
+});
 
-  runMain(main);
-}
+runMain(main);
