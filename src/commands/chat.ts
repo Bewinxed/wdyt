@@ -21,6 +21,7 @@
 import { mkdirSync } from "fs";
 import { join, dirname, basename } from "path";
 import { homedir } from "os";
+import { $ } from "bun";
 import { getTab, getWindow } from "../state";
 
 /**
@@ -71,6 +72,70 @@ function escapeXml(str: string): string {
  */
 function generateUUID(): string {
   return crypto.randomUUID();
+}
+
+/**
+ * Check if claude CLI is available
+ */
+async function claudeCliAvailable(): Promise<boolean> {
+  try {
+    await $`which claude`.quiet();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Run a review using Claude CLI
+ * Returns the review output including verdict
+ */
+async function runClaudeReview(contextPath: string, prompt: string): Promise<string> {
+  // Read the context file content first
+  const contextFile = Bun.file(contextPath);
+  const contextContent = await contextFile.text();
+
+  const reviewPrompt = `You are reviewing code changes. Analyze the following context and provide a thorough review.
+
+Review instructions:
+${prompt}
+
+<context>
+${contextContent}
+</context>
+
+Analyze the code for:
+- Correctness - Logic errors, bugs, spec compliance
+- Security - Injection risks, auth gaps, data exposure
+- Simplicity - Over-engineering, unnecessary complexity
+- Edge cases - Failure modes, boundary conditions
+
+Provide findings organized by severity (Critical > Major > Minor).
+
+REQUIRED: End your review with exactly one verdict tag:
+<verdict>SHIP</verdict> - Code is production-ready
+<verdict>NEEDS_WORK</verdict> - Issues must be fixed first
+<verdict>MAJOR_RETHINK</verdict> - Fundamental problems require redesign`;
+
+  // Write prompt to temp file to avoid shell escaping issues
+  const tempPromptPath = join(getChatsDir(), `review-prompt-${Date.now()}.txt`);
+  await Bun.write(tempPromptPath, reviewPrompt);
+
+  try {
+    // Run claude CLI in print mode, reading from temp file
+    const result = await $`cat ${tempPromptPath} | claude -p`.text();
+
+    // Clean up temp file
+    await $`rm ${tempPromptPath}`.quiet();
+
+    return result.trim();
+  } catch (error) {
+    // Clean up temp file on error too
+    await $`rm ${tempPromptPath}`.quiet();
+
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Claude CLI review failed: ${message}`);
+  }
 }
 
 /**
@@ -253,41 +318,26 @@ export async function chatSendCommand(
     const chatPath = join(chatsDir, `${chatId}.xml`);
     await Bun.write(chatPath, xmlContent);
 
-    // Check if this is a review request - if so, output subagent spawn instruction
+    // Check if this is a review request - if so, run Claude CLI to do the review
     const isReviewMode = payload.mode === "review";
 
     if (isReviewMode) {
-      // Build the review output that instructs Claude Code to spawn quality-auditor
-      const reviewOutput = `Chat: \`${chatId}\`
+      // Check if claude CLI is available
+      if (!(await claudeCliAvailable())) {
+        return {
+          success: false,
+          error: "Review mode requires Claude CLI (claude) to be installed and in PATH",
+        };
+      }
 
-[CLAUDE_CODE_REVIEW_REQUEST]
-The context has been exported to: ${chatPath}
-
-To complete this review, spawn a quality-auditor subagent with the Task tool:
-
-Task(subagent_type="flow-next:quality-auditor", prompt="""
-Review the code changes in this context file: ${chatPath}
-
-Read the file, analyze the code for:
-- Correctness - Logic errors, bugs
-- Security - Injection, auth gaps
-- Simplicity - Over-engineering
-- Edge cases - Failure modes
-
-Provide findings by severity (Critical > Major > Minor).
-
-REQUIRED: End with exactly one verdict tag:
-<verdict>SHIP</verdict> - Code is production-ready
-<verdict>NEEDS_WORK</verdict> - Issues must be fixed first
-""")
-
-The subagent will return the review findings and verdict.
-[/CLAUDE_CODE_REVIEW_REQUEST]`;
+      // Run the review using Claude CLI
+      console.error("Running review with Claude CLI...");
+      const reviewOutput = await runClaudeReview(chatPath, prompt);
 
       return {
         success: true,
-        data: { id: chatId, path: chatPath },
-        output: reviewOutput,
+        data: { id: chatId, path: chatPath, review: reviewOutput },
+        output: `Chat: \`${chatId}\`\n\n${reviewOutput}`,
       };
     }
 
