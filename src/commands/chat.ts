@@ -18,7 +18,7 @@
  * }
  */
 
-import { existsSync, readFileSync, mkdirSync } from "fs";
+import { mkdirSync } from "fs";
 import { join, dirname, basename } from "path";
 import { homedir } from "os";
 import { getTab, getWindow } from "../state";
@@ -74,14 +74,15 @@ function generateUUID(): string {
 }
 
 /**
- * Read file content safely
+ * Read file content safely using Bun's file API
  */
-function readFileSafe(path: string): { success: boolean; content?: string; error?: string } {
+async function readFileSafe(path: string): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
-    if (!existsSync(path)) {
+    const file = Bun.file(path);
+    if (!(await file.exists())) {
       return { success: false, error: `File not found: ${path}` };
     }
-    const content = readFileSync(path, "utf-8");
+    const content = await file.text();
     return { success: true, content };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -218,7 +219,7 @@ export async function chatSendCommand(
     const errors: string[] = [];
 
     for (const filePath of filePaths) {
-      const result = readFileSafe(filePath);
+      const result = await readFileSafe(filePath);
       if (result.success && result.content !== undefined) {
         files.push({ path: filePath, content: result.content });
       } else {

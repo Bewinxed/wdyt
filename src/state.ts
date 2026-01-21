@@ -7,7 +7,7 @@
 
 import { join } from "path";
 import { homedir } from "os";
-import { mkdirSync, existsSync, renameSync } from "fs";
+import { mkdirSync, renameSync } from "fs";
 import type { StateFile, Window, Tab, TabUpdate } from "./types";
 
 const STATE_VERSION = 1;
@@ -60,14 +60,14 @@ function generateUUID(): string {
 export async function loadState(): Promise<StateFile> {
   const statePath = getStatePath();
 
-  // Check if file exists first
-  if (!existsSync(statePath)) {
+  // Check if file exists first using Bun's file API
+  const stateFile = Bun.file(statePath);
+  if (!(await stateFile.exists())) {
     return createDefaultState();
   }
 
   try {
-    const file = Bun.file(statePath);
-    const content = await file.text();
+    const content = await stateFile.text();
     const state = JSON.parse(content) as StateFile;
 
     // Validate basic structure

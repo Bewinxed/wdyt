@@ -8,7 +8,7 @@
  *   bunx wdyt init --global     # Install globally
  */
 
-import { mkdirSync, existsSync, symlinkSync, unlinkSync } from "fs";
+import { mkdirSync, symlinkSync, unlinkSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { $ } from "bun";
@@ -169,12 +169,12 @@ export async function initCommand(options: InitOptions): Promise<{
       mkdirSync(binDir, { recursive: true });
 
       // Remove existing symlink if present
-      if (existsSync(rpCliPath)) {
+      if (await Bun.file(rpCliPath).exists()) {
         unlinkSync(rpCliPath);
       }
 
       // Check if wdyt binary exists
-      if (existsSync(secondOpinionPath)) {
+      if (await Bun.file(secondOpinionPath).exists()) {
         symlinkSync(secondOpinionPath, rpCliPath);
         lines.push(`  ✓ Created symlink: rp-cli -> wdyt`);
       } else {
