@@ -49,9 +49,9 @@ export interface ChatSendResponse {
 function getChatsDir(): string {
   const xdgDataHome = process.env.XDG_DATA_HOME;
   if (xdgDataHome) {
-    return join(xdgDataHome, "rp-cli", "chats");
+    return join(xdgDataHome, "second-opinion", "chats");
   }
-  return join(homedir(), ".rp-cli", "chats");
+  return join(homedir(), ".second-opinion", "chats");
 }
 
 /**

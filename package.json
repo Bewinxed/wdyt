@@ -1,10 +1,11 @@
 {
-  "name": "rp-cli",
+  "name": "second-opinion",
   "version": "0.1.0",
   "type": "module",
-  "description": "Linux alternative for RepoPrompt rp-cli",
+  "description": "Code review context builder for LLMs - get a second opinion on your code",
   "main": "src/cli.ts",
   "bin": {
+    "second-opinion": "./src/cli.ts",
     "rp-cli": "./src/cli.ts"
   },
   "scripts": {

@@ -1,5 +1,5 @@
 /**
- * Types for rp-cli - Linux alternative for RepoPrompt
+ * Types for second-opinion - Code review context builder for LLMs
  */
 
 /** Tab within a window */

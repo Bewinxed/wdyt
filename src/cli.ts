@@ -1,13 +1,16 @@
 #!/usr/bin/env bun
 /**
- * rp-cli - Linux alternative for RepoPrompt CLI
+ * second-opinion - Code review context builder for LLMs
  *
- * Implements the subset of commands that flowctl.py uses:
+ * Get a second opinion on your code by building context for AI review.
+ * Compatible with flowctl.py (rp-cli interface).
+ *
+ * Commands:
  * - windows: list windows
  * - builder: create tabs
  * - prompt get/set/export: manage prompts
  * - select get/add: track file selection
- * - chat_send: export context
+ * - chat_send: export context for review
  */
 
 import { defineCommand, runMain } from "citty";
@@ -159,9 +162,9 @@ function formatOutput(
 
 const main = defineCommand({
   meta: {
-    name: "rp-cli",
+    name: "second-opinion",
     version: "0.1.0",
-    description: "Linux alternative for RepoPrompt CLI",
+    description: "Code review context builder for LLMs",
   },
   args: {
     "raw-json": {
@@ -202,12 +205,12 @@ const main = defineCommand({
 
     // If no expression, show help message
     if (!flags.expression) {
-      console.log("rp-cli - Linux alternative for RepoPrompt CLI");
+      console.log("second-opinion - Code review context builder for LLMs");
       console.log("");
       console.log("Usage:");
-      console.log("  rp-cli --raw-json -e <expression>");
-      console.log("  rp-cli -w <window> -e <expression>");
-      console.log("  rp-cli -w <window> -t <tab> -e <expression>");
+      console.log("  second-opinion --raw-json -e <expression>");
+      console.log("  second-opinion -w <window> -e <expression>");
+      console.log("  second-opinion -w <window> -t <tab> -e <expression>");
       console.log("");
       console.log("Expressions:");
       console.log("  windows                    List all windows");

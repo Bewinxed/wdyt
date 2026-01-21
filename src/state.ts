@@ -1,8 +1,8 @@
 /**
- * State management layer for rp-cli
+ * State management layer for second-opinion
  *
  * Persists windows, tabs, and selections to disk.
- * State is stored in ~/.rp-cli/state.json (or XDG_DATA_HOME/rp-cli/state.json)
+ * State is stored in ~/.second-opinion/state.json (or XDG_DATA_HOME/second-opinion/state.json)
  */
 
 import { join } from "path";
@@ -14,14 +14,14 @@ const STATE_VERSION = 1;
 
 /**
  * Get the data directory path
- * Uses XDG_DATA_HOME if set, otherwise falls back to ~/.rp-cli
+ * Uses XDG_DATA_HOME if set, otherwise falls back to ~/.second-opinion
  */
 function getDataDir(): string {
   const xdgDataHome = process.env.XDG_DATA_HOME;
   if (xdgDataHome) {
-    return join(xdgDataHome, "rp-cli");
+    return join(xdgDataHome, "second-opinion");
   }
-  return join(homedir(), ".rp-cli");
+  return join(homedir(), ".second-opinion");
 }
 
 /**
