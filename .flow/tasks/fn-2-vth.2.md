@@ -26,9 +26,23 @@ git grep -w -n "symbolName" -- "*.ts" "*.js" "*.py"
 - [ ] TBD
 
 ## Done summary
-TBD
+## Summary
 
+Implemented reference finding module at `src/context/references.ts` using `git grep -w -n` to find symbol references across the codebase.
+
+## Features
+- Uses git grep for fast, accurate reference finding
+- Filters out definition file from results
+- Returns file:line:context format
+- Handles symbols with no references gracefully
+
+## Files Changed
+- src/context/references.ts (new) - Main reference finding logic
+- src/context/references.test.ts (new) - 19 comprehensive tests
+
+## Test Results
+All 19 tests pass.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 33892ca
+- Tests: src/context/references.test.ts
 - PRs:

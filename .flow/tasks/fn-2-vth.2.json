@@ -7,10 +7,19 @@
     "fn-2-vth.1"
   ],
   "epic": "fn-2-vth",
+  "evidence": {
+    "commits": [
+      "33892ca"
+    ],
+    "review_verdict": "SKIPPED (rp not available)",
+    "tests": [
+      "src/context/references.test.ts"
+    ]
+  },
   "id": "fn-2-vth.2",
   "priority": null,
   "spec_path": ".flow/tasks/fn-2-vth.2.md",
-  "status": "in_progress",
+  "status": "done",
   "title": "Reference finding via git grep",
-  "updated_at": "2026-01-21T10:48:47.641036Z"
+  "updated_at": "2026-01-21T10:59:05.820564Z"
 }
