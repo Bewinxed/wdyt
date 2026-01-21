@@ -183,9 +183,19 @@ const main = defineCommand({
     },
   },
   async run({ args }) {
+    // Parse and validate window ID
+    let windowId: number | undefined;
+    if (args.w) {
+      windowId = parseInt(args.w, 10);
+      if (isNaN(windowId) || windowId < 1) {
+        console.error(`Error: Invalid window ID "${args.w}". Must be a positive integer.`);
+        process.exit(1);
+      }
+    }
+
     const flags: CLIFlags = {
       rawJson: args["raw-json"],
-      window: args.w ? parseInt(args.w, 10) : undefined,
+      window: windowId,
       tab: args.t,
       expression: args.e,
     };

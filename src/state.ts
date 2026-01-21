@@ -7,6 +7,7 @@
 
 import { join } from "path";
 import { homedir } from "os";
+import { mkdirSync, existsSync, renameSync } from "fs";
 import type { StateFile, Window, Tab, TabUpdate } from "./types";
 
 const STATE_VERSION = 1;
@@ -59,26 +60,39 @@ function generateUUID(): string {
 export async function loadState(): Promise<StateFile> {
   const statePath = getStatePath();
 
-  try {
-    const file = Bun.file(statePath);
-    if (await file.exists()) {
-      const content = await file.text();
-      const state = JSON.parse(content) as StateFile;
-
-      // Validate and migrate if needed
-      if (!state.version || state.version < STATE_VERSION) {
-        // Future: handle migrations
-      }
-
-      return state;
-    }
-  } catch (error) {
-    // If there's an error reading, start fresh
-    console.error(`Warning: Could not read state file: ${error}`);
+  // Check if file exists first
+  if (!existsSync(statePath)) {
+    return createDefaultState();
   }
 
-  // Create default state
-  return createDefaultState();
+  try {
+    const file = Bun.file(statePath);
+    const content = await file.text();
+    const state = JSON.parse(content) as StateFile;
+
+    // Validate basic structure
+    if (!state || typeof state !== "object" || !Array.isArray(state.windows)) {
+      throw new Error("Invalid state structure");
+    }
+
+    // Validate and migrate if needed
+    if (!state.version || state.version < STATE_VERSION) {
+      // Future: handle migrations
+      state.version = STATE_VERSION;
+    }
+
+    return state;
+  } catch (error) {
+    // State file exists but is corrupted - backup and start fresh
+    const backupPath = `${statePath}.backup.${Date.now()}`;
+    try {
+      renameSync(statePath, backupPath);
+      console.error(`Warning: State file corrupted, backed up to ${backupPath}`);
+    } catch {
+      console.error(`Warning: Could not backup corrupted state file: ${error}`);
+    }
+    return createDefaultState();
+  }
 }
 
 /**
@@ -88,14 +102,8 @@ export async function saveState(state: StateFile): Promise<void> {
   const statePath = getStatePath();
   const dataDir = getDataDir();
 
-  // Ensure directory exists
-  const dir = Bun.file(dataDir);
-  try {
-    // Create directory if it doesn't exist
-    await Bun.write(join(dataDir, ".keep"), "");
-  } catch {
-    // Directory might already exist, that's fine
-  }
+  // Ensure directory exists using proper mkdir
+  mkdirSync(dataDir, { recursive: true });
 
   // Write state file atomically
   const content = JSON.stringify(state, null, 2);

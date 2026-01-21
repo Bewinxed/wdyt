@@ -4,7 +4,7 @@
 
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { join } from "path";
-import { rmdir, rm } from "fs/promises";
+import { rm } from "fs/promises";
 import {
   loadState,
   saveState,

@@ -12,7 +12,27 @@
  * - cmd_rp_prompt_export (line 3986): prompt export <file>
  */
 
+import { resolve } from "path";
+import { homedir } from "os";
 import { getTab, updateTab } from "../state";
+
+/**
+ * Validate that a file path is safe for writing
+ * Prevents path traversal attacks by ensuring path is within allowed directories
+ */
+function isPathSafe(filePath: string): boolean {
+  const resolved = resolve(filePath);
+  const home = homedir();
+  const cwd = process.cwd();
+  const tmp = "/tmp";
+
+  // Allow paths within home directory, current working directory, or /tmp
+  return (
+    resolved.startsWith(home) ||
+    resolved.startsWith(cwd) ||
+    resolved.startsWith(tmp)
+  );
+}
 
 /**
  * Prompt get response
@@ -139,15 +159,24 @@ export async function promptExportCommand(
   error?: string;
 }> {
   try {
+    // Validate path to prevent path traversal attacks
+    if (!isPathSafe(filePath)) {
+      return {
+        success: false,
+        error: `Path not allowed: ${filePath}. Must be within home directory, current directory, or /tmp`,
+      };
+    }
+
     const tab = await getTab(windowId, tabId);
+    const resolvedPath = resolve(filePath);
 
     // Write prompt to file
-    await Bun.write(filePath, tab.prompt);
+    await Bun.write(resolvedPath, tab.prompt);
 
     return {
       success: true,
-      data: { path: filePath },
-      output: `Exported to ${filePath}`,
+      data: { path: resolvedPath },
+      output: `Exported to ${resolvedPath}`,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

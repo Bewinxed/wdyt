@@ -40,6 +40,7 @@ export interface ChatSendPayload {
 export interface ChatSendResponse {
   id: string;
   path: string;
+  review?: string;
 }
 
 /**
@@ -226,6 +227,14 @@ export async function chatSendCommand(
       }
     }
 
+    // Log any skipped files to stderr so users are aware
+    if (errors.length > 0) {
+      console.error(`Warning: ${errors.length} file(s) skipped:`);
+      for (const err of errors) {
+        console.error(`  ${err}`);
+      }
+    }
+
     // Build directory structure from the files we successfully read
     const directoryStructure = buildDirectoryStructure(files.map((f) => f.path));
 
@@ -242,6 +251,44 @@ export async function chatSendCommand(
     // Write the XML file
     const chatPath = join(chatsDir, `${chatId}.xml`);
     await Bun.write(chatPath, xmlContent);
+
+    // Check if this is a review request - if so, output subagent spawn instruction
+    const isReviewMode = payload.mode === "review";
+
+    if (isReviewMode) {
+      // Build the review output that instructs Claude Code to spawn quality-auditor
+      const reviewOutput = `Chat: \`${chatId}\`
+
+[CLAUDE_CODE_REVIEW_REQUEST]
+The context has been exported to: ${chatPath}
+
+To complete this review, spawn a quality-auditor subagent with the Task tool:
+
+Task(subagent_type="flow-next:quality-auditor", prompt="""
+Review the code changes in this context file: ${chatPath}
+
+Read the file, analyze the code for:
+- Correctness - Logic errors, bugs
+- Security - Injection, auth gaps
+- Simplicity - Over-engineering
+- Edge cases - Failure modes
+
+Provide findings by severity (Critical > Major > Minor).
+
+REQUIRED: End with exactly one verdict tag:
+<verdict>SHIP</verdict> - Code is production-ready
+<verdict>NEEDS_WORK</verdict> - Issues must be fixed first
+""")
+
+The subagent will return the review findings and verdict.
+[/CLAUDE_CODE_REVIEW_REQUEST]`;
+
+      return {
+        success: true,
+        data: { id: chatId, path: chatPath },
+        output: reviewOutput,
+      };
+    }
 
     // Return in the expected format: Chat: `<uuid>`
     return {
