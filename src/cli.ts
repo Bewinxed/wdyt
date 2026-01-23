@@ -25,6 +25,7 @@ import {
 } from "./commands/prompt";
 import { selectGetCommand, selectAddCommand } from "./commands/select";
 import { chatSendCommand } from "./commands/chat";
+import { skillGetCommand, skillListCommand } from "./commands/skill";
 import { parseExpression } from "./parseExpression";
 
 /**
@@ -102,6 +103,25 @@ async function executeExpression(
       }
 
       return { success: false, error: `Unknown select subcommand: ${subcommand}` };
+    }
+
+    case "skill": {
+      // skill get <name> - return skill content for agentic loading
+      const subcommand = parsed.subcommand || parsed.positional[0];
+
+      if (subcommand === "get") {
+        const skillName = parsed.positional[1] || parsed.positional[0];
+        if (!skillName || skillName === "get") {
+          return { success: false, error: "skill get requires a skill name" };
+        }
+        return await skillGetCommand(skillName);
+      }
+
+      if (subcommand === "list") {
+        return await skillListCommand();
+      }
+
+      return { success: false, error: `Unknown skill subcommand: ${subcommand}` };
     }
 
     case "call": {

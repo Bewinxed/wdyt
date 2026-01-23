@@ -19,11 +19,15 @@
  */
 
 import { mkdirSync } from "fs";
-import { join, dirname, basename } from "path";
+import { join } from "path";
 import { homedir } from "os";
 import { $ } from "bun";
 import { getTab, getWindow } from "../state";
 import { processReReview, recordReview } from "../context/rereview";
+import {
+  buildOptimizedContext,
+  formatContextPlanSummary,
+} from "../context";
 
 /**
  * Chat send payload structure (from flowctl.py build_chat_payload)
@@ -54,6 +58,18 @@ export interface ChatSendResponse {
   verdict?: Verdict;
   isReReview?: boolean;
   changedFiles?: string[];
+  /** Selected review strategy */
+  strategy?: {
+    type: string;
+    reason: string;
+  };
+  /** Context plan showing what was included/excluded */
+  contextPlan?: {
+    fullFiles: number;
+    codeMappedFiles: number;
+    excludedFiles: number;
+    totalTokens: number;
+  };
 }
 
 /**
@@ -65,18 +81,6 @@ function getChatsDir(): string {
     return join(xdgDataHome, "wdyt", "chats");
   }
   return join(homedir(), ".wdyt", "chats");
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
 }
 
 /**
@@ -184,6 +188,52 @@ const EMBEDDED_QUALITY_AUDITOR = `You are a pragmatic code auditor. Your job is 
 - If no issues found, say so clearly`;
 
 /**
+ * Embedded router prompt - teaches Claude to load skills via wdyt CLI
+ */
+const EMBEDDED_ROUTER = `You are an expert code reviewer. First, analyze the context to decide the best review approach.
+
+## Step 1: Analyze What You've Been Given
+
+Look at the context provided:
+- How many files?
+- How many lines changed?
+- What kind of change? (bug fix, feature, refactor, security-related)
+- Is there a clear spec or requirements?
+
+## Step 2: Choose and Load Your Skill
+
+Based on your analysis, choose ONE approach and load its instructions:
+
+### Quick Review
+**When:** 1-3 files, <500 lines, clear purpose, bug fix or small feature
+**Load:** Run \`wdyt -e 'skill get review-quick'\`
+
+### Thorough Review
+**When:** 4-10 files, significant changes, needs careful analysis
+**Load:** Run \`wdyt -e 'skill get review-thorough'\`
+
+### Security Review
+**When:** Code touches auth, crypto, user input, sensitive data, or APIs
+**Load:** Run \`wdyt -e 'skill get review-security'\`
+
+### Exploration Review
+**When:** No specific files given, asked to "audit" or "explore"
+**Load:** Run \`wdyt -e 'skill get review-exploration'\`
+
+## Step 3: Execute
+
+1. State which approach you're using and why (1 sentence)
+2. Run the wdyt command to load the skill instructions
+3. Follow those instructions exactly
+
+## Output
+
+Always end with:
+\`\`\`
+<verdict>SHIP|NEEDS_WORK|MAJOR_RETHINK</verdict>
+\`\`\``;
+
+/**
  * Get the skills directory path (bundled with the package)
  */
 function getSkillsDir(): string {
@@ -215,6 +265,9 @@ async function loadSkillPrompt(skillName: string): Promise<string> {
   if (skillName === "quality-auditor") {
     return EMBEDDED_QUALITY_AUDITOR;
   }
+  if (skillName === "review-router") {
+    return EMBEDDED_ROUTER;
+  }
 
   throw new Error(`Skill not found: ${skillName}`);
 }
@@ -236,35 +289,38 @@ function parseVerdict(response: string): Verdict | undefined {
 }
 
 /**
- * Run a chat using Claude CLI
- * Sends the prompt + context to Claude and returns the response
+ * Run an agentic review using Claude CLI
+ * Uses the router prompt to let Claude decide the review strategy
+ * Claude loads skills via `wdyt -e 'skill get <name>'` command
+ *
+ * @param contextXml - The packed context XML
+ * @param userPrompt - User's review request
+ * @param rootPath - Root path of the project (for tool access)
  */
-async function runClaudeChat(contextPath: string, prompt: string): Promise<string> {
-  // Read the context file content first
-  const contextFile = Bun.file(contextPath);
-  const contextContent = await contextFile.text();
+async function runAgenticReview(contextXml: string, userPrompt: string, rootPath: string): Promise<string> {
+  // Load the router prompt (teaches Claude to load skills via wdyt CLI)
+  const routerPrompt = await loadSkillPrompt("review-router");
 
-  // Load the quality auditor skill prompt
-  const skillPrompt = await loadSkillPrompt("quality-auditor");
-
-  // Build the full prompt with skill prompt + user prompt + context
-  const fullPrompt = `${skillPrompt}
+  // Build the full prompt with router + user request + context
+  const fullPrompt = `${routerPrompt}
 
 ## User Request
 
-${prompt}
+${userPrompt}
 
-<context>
-${contextContent}
-</context>`;
+## Context
+
+${contextXml}`;
 
   // Write prompt to temp file to avoid shell escaping issues
   const tempPromptPath = join(getChatsDir(), `prompt-${Date.now()}.txt`);
   await Bun.write(tempPromptPath, fullPrompt);
 
   try {
-    // Run claude CLI in print mode with no session persistence (one-off, not in /resume history)
-    const result = await $`cat ${tempPromptPath} | claude -p --no-session-persistence`.text();
+    // Run claude CLI in AGENTIC mode (no -p flag) with tool access
+    // Allow Read tool so Claude can load skill files
+    const allowedTools = "Read,Glob,Grep,Bash";
+    const result = await $`cd ${rootPath} && cat ${tempPromptPath} | claude --no-session-persistence --allowedTools ${allowedTools}`.text();
 
     // Clean up temp file
     await $`rm ${tempPromptPath}`.quiet();
@@ -278,6 +334,7 @@ ${contextContent}
     throw new Error(`Claude CLI review failed: ${message}`);
   }
 }
+
 
 /**
  * Read file content safely using Bun's file API
@@ -294,88 +351,6 @@ async function readFileSafe(path: string): Promise<{ success: boolean; content?:
     const message = error instanceof Error ? error.message : String(error);
     return { success: false, error: message };
   }
-}
-
-/**
- * Build XML content with prompt and files
- *
- * Format:
- * <context>
- *   <prompt>...</prompt>
- *   <files>
- *     <file path="...">content</file>
- *     ...
- *   </files>
- *   <directory_structure>...</directory_structure>
- * </context>
- */
-function buildContextXml(
-  prompt: string,
-  files: Array<{ path: string; content: string }>,
-  directoryStructure: string
-): string {
-  const lines: string[] = [];
-  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
-  lines.push("<context>");
-
-  // Add prompt
-  lines.push("  <prompt>");
-  lines.push(`    ${escapeXml(prompt)}`);
-  lines.push("  </prompt>");
-
-  // Add files
-  if (files.length > 0) {
-    lines.push("  <files>");
-    for (const file of files) {
-      lines.push(`    <file path="${escapeXml(file.path)}">`);
-      lines.push(escapeXml(file.content));
-      lines.push("    </file>");
-    }
-    lines.push("  </files>");
-  }
-
-  // Add directory structure
-  if (directoryStructure) {
-    lines.push("  <directory_structure>");
-    lines.push(`    ${escapeXml(directoryStructure)}`);
-    lines.push("  </directory_structure>");
-  }
-
-  lines.push("</context>");
-  return lines.join("\n");
-}
-
-/**
- * Build directory structure string from file paths
- */
-function buildDirectoryStructure(paths: string[]): string {
-  if (paths.length === 0) return "";
-
-  // Group files by directory
-  const dirs = new Map<string, string[]>();
-
-  for (const path of paths) {
-    const dir = dirname(path);
-    const file = basename(path);
-    if (!dirs.has(dir)) {
-      dirs.set(dir, []);
-    }
-    dirs.get(dir)!.push(file);
-  }
-
-  // Build tree-like structure
-  const lines: string[] = [];
-  const sortedDirs = Array.from(dirs.keys()).sort();
-
-  for (const dir of sortedDirs) {
-    lines.push(`${dir}/`);
-    const files = dirs.get(dir)!.sort();
-    for (const file of files) {
-      lines.push(`  ${file}`);
-    }
-  }
-
-  return lines.join("\n");
 }
 
 /**
@@ -425,12 +400,14 @@ export async function chatSendCommand(
       prompt = reReviewResult.preamble + prompt;
     }
 
+    // Resolve root path first for git operations
+    const rootPath = window.rootFolderPaths[0] || process.cwd();
+
     // Determine which files to include
     // Use selected_paths from payload if provided, otherwise use tab's selectedFiles
     let filePaths = payload.selected_paths || tab.selectedFiles;
 
-    // Resolve relative paths against window root
-    const rootPath = window.rootFolderPaths[0] || process.cwd();
+    // Resolve relative paths against window root (rootPath already defined above)
     filePaths = filePaths.map((p) => {
       if (p.startsWith("/")) return p;
       return join(rootPath, p);
@@ -438,26 +415,35 @@ export async function chatSendCommand(
 
     // Read file contents
     const files: Array<{ path: string; content: string }> = [];
-    const errors: string[] = [];
 
     for (const filePath of filePaths) {
       const result = await readFileSafe(filePath);
       if (result.success && result.content !== undefined) {
         files.push({ path: filePath, content: result.content });
-      } else {
-        // Handle missing files gracefully - just skip them and log
-        errors.push(`Skipped: ${filePath} (${result.error})`);
       }
+      // Missing files are silently ignored to avoid polluting stderr
     }
 
-    // Note: Skipped files are silently ignored to avoid polluting stderr
-    // The files array contains only successfully read files
+    // Load router prompt for token budget calculation (it's small)
+    const routerPrompt = await loadSkillPrompt("review-router");
 
-    // Build directory structure from the files we successfully read
-    const directoryStructure = buildDirectoryStructure(files.map((f) => f.path));
+    // Build optimized context with code maps for large files
+    const { xml: xmlContent, plan: contextPlan } = await buildOptimizedContext(
+      files,
+      prompt,
+      routerPrompt,
+      {
+        maxTokens: 50_000, // Safe limit (RepoPrompt uses 60k)
+        baseBranch: payload.base_branch,
+        rootPath,
+        includeGitDiff: true,
+      }
+    );
 
-    // Build the XML content
-    const xmlContent = buildContextXml(prompt, files, directoryStructure);
+    // Log context plan summary if any files were excluded or converted to code maps
+    if (contextPlan.codeMappedFiles.length > 0 || contextPlan.excludedFiles.length > 0) {
+      console.error(formatContextPlanSummary(contextPlan));
+    }
 
     // Generate chat ID
     const chatId = generateUUID();
@@ -473,11 +459,18 @@ export async function chatSendCommand(
     // Record this review for future re-review detection
     recordReview(chatId, files.map((f) => f.path));
 
-    // Always run Claude CLI to process the chat - that's what a drop-in rp-cli replacement does
-    if (await claudeCliAvailable()) {
-      const response = await runClaudeChat(chatPath, prompt);
+    // Build context plan summary for response
+    const contextPlanSummary = {
+      fullFiles: contextPlan.fullFiles.length,
+      codeMappedFiles: contextPlan.codeMappedFiles.length,
+      excludedFiles: contextPlan.excludedFiles.length,
+      totalTokens: contextPlan.totalTokens,
+    };
 
-      // Parse verdict from response
+    // Run agentic review - Claude decides the strategy
+    if (await claudeCliAvailable()) {
+      console.error("Running agentic review (Claude decides strategy)...");
+      const response = await runAgenticReview(xmlContent, prompt, rootPath);
       const verdict = parseVerdict(response);
 
       return {
@@ -489,6 +482,11 @@ export async function chatSendCommand(
           verdict,
           isReReview: reReviewResult.isReReview,
           changedFiles: reReviewResult.changedFiles,
+          strategy: {
+            type: "agentic",
+            reason: "Claude decides based on context",
+          },
+          contextPlan: contextPlanSummary,
         },
         output: `Chat: \`${chatId}\`\n\n${response}`,
       };
@@ -502,6 +500,11 @@ export async function chatSendCommand(
         path: chatPath,
         isReReview: reReviewResult.isReReview,
         changedFiles: reReviewResult.changedFiles,
+        strategy: {
+          type: "context-only",
+          reason: "Claude CLI not available",
+        },
+        contextPlan: contextPlanSummary,
       },
       output: `Chat: \`${chatId}\`\n\nContext exported to: ${chatPath}\n(Install Claude CLI for automatic LLM processing)`,
     };
