@@ -2,8 +2,12 @@
  * Symbol extraction module for wdyt
  *
  * Extracts function names, class names, type definitions, and interface names
- * from source files in multiple languages.
+ * from source files using llm-tldr's tree-sitter AST.
+ * Supports 16+ languages via tree-sitter.
  */
+
+import type { TldrClient } from "../tldr";
+import type { TldrStructureEntry } from "../tldr/types";
 
 /** Symbol types that can be extracted from source code */
 export type SymbolType = "function" | "class" | "type" | "interface" | "const";
@@ -15,122 +19,46 @@ export interface Symbol {
   line: number;
 }
 
-/** Language-specific regex patterns for symbol extraction */
-interface LanguagePatterns {
-  patterns: Array<{
-    regex: RegExp;
-    type: SymbolType;
-  }>;
+/**
+ * Map tldr type to SymbolType
+ */
+function mapSymbolType(tldrType: TldrStructureEntry["type"]): SymbolType {
+  switch (tldrType) {
+    case "function":
+      return "function";
+    case "class":
+      return "class";
+    case "method":
+      return "function";
+    case "interface":
+      return "interface";
+    case "type":
+      return "type";
+    default:
+      return "function";
+  }
 }
 
-/**
- * TypeScript/JavaScript patterns
- * Matches: export function, async function, class, type, interface, const
- */
-const TYPESCRIPT_PATTERNS: LanguagePatterns = {
-  patterns: [
-    {
-      regex: /(?:export\s+)?(?:async\s+)?function\s+(\w+)/g,
-      type: "function",
-    },
-    {
-      regex: /(?:export\s+)?class\s+(\w+)/g,
-      type: "class",
-    },
-    {
-      regex: /(?:export\s+)?type\s+(\w+)/g,
-      type: "type",
-    },
-    {
-      regex: /(?:export\s+)?interface\s+(\w+)/g,
-      type: "interface",
-    },
-    {
-      // Match const with optional type annotation: const FOO: Type = or const FOO =
-      regex: /(?:export\s+)?const\s+(\w+)(?:\s*:\s*[^=]+)?\s*=/g,
-      type: "const",
-    },
-  ],
-};
-
-/**
- * Python patterns
- * Matches: def, async def, class (including indented methods)
- */
-const PYTHON_PATTERNS: LanguagePatterns = {
-  patterns: [
-    {
-      // Match def at any indentation level (for methods inside classes)
-      // Use [ \t]* for horizontal whitespace only (not newlines)
-      regex: /^[ \t]*(?:async\s+)?def\s+(\w+)/gm,
-      type: "function",
-    },
-    {
-      regex: /^class\s+(\w+)/gm,
-      type: "class",
-    },
-  ],
-};
-
-/**
- * Go patterns
- * Matches: func, type struct, type interface
- */
-const GO_PATTERNS: LanguagePatterns = {
-  patterns: [
-    {
-      regex: /^func\s+(?:\([^)]+\)\s+)?(\w+)/gm,
-      type: "function",
-    },
-    {
-      regex: /^type\s+(\w+)\s+struct/gm,
-      type: "class",
-    },
-    {
-      regex: /^type\s+(\w+)\s+interface/gm,
-      type: "interface",
-    },
-  ],
-};
-
-/**
- * Rust patterns
- * Matches: fn, pub fn, struct, pub struct, trait, pub trait, impl, type alias
- */
-const RUST_PATTERNS: LanguagePatterns = {
-  patterns: [
-    {
-      regex: /(?:pub\s+)?(?:async\s+)?fn\s+(\w+)/g,
-      type: "function",
-    },
-    {
-      regex: /(?:pub\s+)?struct\s+(\w+)/g,
-      type: "class",
-    },
-    {
-      regex: /(?:pub\s+)?trait\s+(\w+)/g,
-      type: "interface",
-    },
-    {
-      // Match type alias with optional generic params: type Foo<T> = or type Foo =
-      regex: /(?:pub\s+)?type\s+(\w+)(?:<[^>]*>)?\s*=/g,
-      type: "type",
-    },
-  ],
-};
-
-/** File extensions to language pattern mapping */
-const EXTENSION_PATTERNS: Record<string, LanguagePatterns> = {
-  ".ts": TYPESCRIPT_PATTERNS,
-  ".tsx": TYPESCRIPT_PATTERNS,
-  ".js": TYPESCRIPT_PATTERNS,
-  ".jsx": TYPESCRIPT_PATTERNS,
-  ".mjs": TYPESCRIPT_PATTERNS,
-  ".cjs": TYPESCRIPT_PATTERNS,
-  ".py": PYTHON_PATTERNS,
-  ".go": GO_PATTERNS,
-  ".rs": RUST_PATTERNS,
-};
+/** All file extensions supported by llm-tldr's tree-sitter */
+const SUPPORTED_EXTENSIONS = new Set([
+  ".ts", ".tsx", ".mts", ".cts",
+  ".js", ".jsx", ".mjs", ".cjs",
+  ".py", ".pyw",
+  ".go",
+  ".rs",
+  ".rb",
+  ".java",
+  ".kt", ".kts",
+  ".swift",
+  ".c", ".h",
+  ".cpp", ".cxx", ".cc", ".hpp",
+  ".cs",
+  ".php",
+  ".scala",
+  ".zig",
+  ".lua",
+  ".svelte",
+]);
 
 /**
  * Get the file extension from a file path
@@ -142,71 +70,54 @@ function getExtension(filePath: string): string {
 }
 
 /**
- * Get line number for a given character index in content
- */
-function getLineNumber(content: string, charIndex: number): number {
-  let lineNumber = 1;
-  for (let i = 0; i < charIndex && i < content.length; i++) {
-    if (content[i] === "\n") {
-      lineNumber++;
-    }
-  }
-  return lineNumber;
-}
-
-/**
- * Extract symbols from file content
+ * Extract symbols from file content using llm-tldr's tree-sitter AST.
  *
- * @param content - The source file content
- * @param filePath - The file path (used to determine language from extension)
+ * @param content - The source file content (unused — kept for interface compat)
+ * @param filePath - The file path
+ * @param tldr - TldrClient instance
+ * @param projectPath - Project root path
  * @returns Array of extracted symbols with name, type, and line number
  */
-export function extractSymbols(content: string, filePath: string): Symbol[] {
-  const extension = getExtension(filePath);
-  const languagePatterns = EXTENSION_PATTERNS[extension];
-
-  if (!languagePatterns) {
+export async function extractSymbols(
+  content: string,
+  filePath: string,
+  tldr: TldrClient,
+  projectPath: string,
+): Promise<Symbol[]> {
+  if (!isSupported(filePath)) {
     return [];
   }
 
-  const symbols: Symbol[] = [];
-  const seen = new Set<string>();
+  try {
+    const entries = await tldr.structure(filePath, projectPath);
 
-  for (const { regex, type } of languagePatterns.patterns) {
-    // Reset regex lastIndex for global patterns
-    regex.lastIndex = 0;
+    const symbols: Symbol[] = entries.map((entry) => ({
+      name: entry.name,
+      type: mapSymbolType(entry.type),
+      line: entry.line,
+    }));
 
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
-      const name = match[1];
-      const key = `${name}:${type}:${match.index}`;
+    // Sort by line number
+    symbols.sort((a, b) => a.line - b.line);
 
-      // Avoid duplicates at the same position
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      symbols.push({
-        name,
-        type,
-        line: getLineNumber(content, match.index),
-      });
-    }
+    return symbols;
+  } catch {
+    return [];
   }
-
-  // Sort by line number
-  symbols.sort((a, b) => a.line - b.line);
-
-  return symbols;
 }
 
 /**
  * Extract symbols from a file path
  *
  * @param filePath - Absolute path to the source file
+ * @param tldr - TldrClient instance
+ * @param projectPath - Project root path
  * @returns Array of extracted symbols
  */
 export async function extractSymbolsFromFile(
-  filePath: string
+  filePath: string,
+  tldr: TldrClient,
+  projectPath: string,
 ): Promise<Symbol[]> {
   const file = Bun.file(filePath);
 
@@ -215,7 +126,7 @@ export async function extractSymbolsFromFile(
   }
 
   const content = await file.text();
-  return extractSymbols(content, filePath);
+  return extractSymbols(content, filePath, tldr, projectPath);
 }
 
 /**
@@ -223,12 +134,12 @@ export async function extractSymbolsFromFile(
  */
 export function isSupported(filePath: string): boolean {
   const extension = getExtension(filePath);
-  return extension in EXTENSION_PATTERNS;
+  return SUPPORTED_EXTENSIONS.has(extension);
 }
 
 /**
  * Get list of supported file extensions
  */
 export function getSupportedExtensions(): string[] {
-  return Object.keys(EXTENSION_PATTERNS);
+  return Array.from(SUPPORTED_EXTENSIONS);
 }

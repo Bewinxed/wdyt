@@ -38,6 +38,8 @@ export interface StrategyContext {
     /** Force single-pass review */
     quick?: boolean;
   };
+  /** Average cyclomatic complexity of changed functions (from tldr cfg) */
+  avgComplexity?: number;
 }
 
 /** Configuration for each strategy */
@@ -209,7 +211,23 @@ export function selectStrategy(ctx: StrategyContext): ReviewStrategy {
     };
   }
 
-  // 5. Small/medium changes with spec use optimized single-pass
+  // 5. High complexity: upgrade to multi-pass even for small changes
+  if (ctx.avgComplexity !== undefined && ctx.avgComplexity > 15) {
+    return {
+      type: "multi-pass",
+      reason: `High complexity (avg ${Math.round(ctx.avgComplexity)})`,
+      config: {
+        includeSpec: ctx.hasTaskSpec,
+        includeGuidelines: true,
+        includeCodeMaps: true,
+        parallelAgents: 3,
+        focuses: ["correctness", "edge-cases", "simplicity"],
+        confidenceThreshold: 80,
+      },
+    };
+  }
+
+  // 6. Small/medium changes with spec use optimized single-pass
   if (fileCount <= 3 && totalLines < 500) {
     return {
       type: "single-pass",
@@ -222,7 +240,7 @@ export function selectStrategy(ctx: StrategyContext): ReviewStrategy {
     };
   }
 
-  // 6. Medium changes (4-10 files)
+  // 7. Medium changes (4-10 files)
   return {
     type: "single-pass",
     reason: `Medium change (${fileCount} files)`,

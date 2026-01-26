@@ -26,6 +26,24 @@ import { generateContextHints, formatHints } from "./context/hints";
 import { getGitDiffContext, formatDiffContextXml } from "./git/diff";
 import { buildReReviewPreamble, clearReviewState } from "./context/rereview";
 import { loadTaskSpec, getTaskSpecContext } from "./flow/specs";
+import { TldrClient } from "./tldr";
+import { mock } from "bun:test";
+
+/**
+ * Create a mock TldrClient for integration tests (no real uvx needed)
+ */
+function createMockTldr(): TldrClient {
+  const client = new TldrClient();
+  client.structure = mock(() => Promise.resolve([]));
+  client.impact = mock(() =>
+    Promise.resolve({ function: "", callers: [], callees: [] })
+  );
+  client.semantic = mock(() => Promise.resolve([]));
+  client.ensureWarmed = mock(() => Promise.resolve());
+  client.isAvailable = mock(() => Promise.resolve(false));
+  client.isWarmed = mock(() => Promise.resolve(false));
+  return client;
+}
 
 // Test fixtures directory
 const TEST_DIR = join(import.meta.dir, "..", ".test-integration");
@@ -208,7 +226,7 @@ describe("Integration: flowctl-compatible pipeline", () => {
         message: "Please review this code for issues",
         mode: "review",
         new_chat: true,
-      }));
+      }), createMockTldr());
 
       // Verify response structure
       expect(result.success).toBe(true);
@@ -239,7 +257,7 @@ describe("Integration: flowctl-compatible pipeline", () => {
         message: "Review these files",
         mode: "review",
         selected_paths: [join(TEST_DIR, "src", "user.ts")],
-      }));
+      }), createMockTldr());
 
       expect(result.success).toBe(true);
       expect(result.data?.id).toBeDefined();
@@ -254,16 +272,21 @@ describe("Integration: flowctl-compatible pipeline", () => {
 
 describe("Integration: Context hints generation", () => {
   it("generates hints from TypeScript symbols", async () => {
+    const tldr = createMockTldr();
     const fileContents = new Map([
       ["src/user.ts", SAMPLE_TS_FILE],
     ]);
 
-    const hints = await generateContextHints({
-      changedFiles: ["src/user.ts"],
-      fileContents,
-      cwd: process.cwd(),
-      maxHints: 10,
-    });
+    const hints = await generateContextHints(
+      {
+        changedFiles: ["src/user.ts"],
+        fileContents,
+        cwd: process.cwd(),
+        maxHints: 10,
+      },
+      tldr,
+      process.cwd(),
+    );
 
     // Should return array (may be empty if no external refs)
     expect(Array.isArray(hints)).toBe(true);
@@ -484,7 +507,7 @@ describe("Integration: Full pipeline simulation", () => {
       message: "Review this user module for security and correctness",
       mode: "review",
       new_chat: true,
-    }));
+    }), createMockTldr());
 
     expect(chatResult.success).toBe(true);
     expect(chatResult.data?.id).toBeDefined();
@@ -516,7 +539,7 @@ describe("Integration: Full pipeline simulation", () => {
       message: "Initial review",
       mode: "review",
       new_chat: true,
-    }));
+    }), createMockTldr());
     expect(firstReview.success).toBe(true);
     const firstChatId = firstReview.data!.id;
 
@@ -526,7 +549,7 @@ describe("Integration: Full pipeline simulation", () => {
       mode: "review",
       chat_id: firstChatId, // Continue from first chat
       new_chat: false,
-    }));
+    }), createMockTldr());
 
     expect(reReview.success).toBe(true);
     expect(reReview.data?.isReReview).toBe(true);

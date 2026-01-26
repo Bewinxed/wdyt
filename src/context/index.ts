@@ -2,8 +2,17 @@
  * Context module exports
  *
  * Provides symbol extraction, reference finding, and context hints
- * generation for code reviews.
+ * generation for code reviews. All analysis powered by llm-tldr.
  */
+
+// llm-tldr client
+export { TldrClient } from "../tldr";
+export type {
+  TldrStructureEntry,
+  TldrImpactResult,
+  TldrSemanticResult,
+  TldrContextResult,
+} from "../tldr";
 
 // Symbol extraction
 export {

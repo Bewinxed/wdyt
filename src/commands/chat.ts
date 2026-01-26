@@ -28,6 +28,7 @@ import {
   buildOptimizedContext,
   formatContextPlanSummary,
 } from "../context";
+import { TldrClient } from "../tldr";
 
 /**
  * Chat send payload structure (from flowctl.py build_chat_payload)
@@ -366,7 +367,8 @@ async function readFileSafe(path: string): Promise<{ success: boolean; content?:
 export async function chatSendCommand(
   windowId: number,
   tabId: string,
-  payloadJson: string
+  payloadJson: string,
+  injectedTldr?: TldrClient,
 ): Promise<{
   success: boolean;
   data?: ChatSendResponse;
@@ -403,6 +405,16 @@ export async function chatSendCommand(
     // Resolve root path first for git operations
     const rootPath = window.rootFolderPaths[0] || process.cwd();
 
+    // Create TldrClient and auto-warm (use injected for testing)
+    const tldr = injectedTldr || new TldrClient();
+    if (!injectedTldr) {
+      try {
+        await tldr.ensureWarmed(rootPath);
+      } catch (e) {
+        console.error(`tldr warm: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
     // Determine which files to include
     // Use selected_paths from payload if provided, otherwise use tab's selectedFiles
     let filePaths = payload.selected_paths || tab.selectedFiles;
@@ -437,6 +449,7 @@ export async function chatSendCommand(
         baseBranch: payload.base_branch,
         rootPath,
         includeGitDiff: true,
+        tldr,
       }
     );
 

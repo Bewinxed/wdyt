@@ -8,11 +8,14 @@
  * - Full file contents (for high-priority files)
  * - Git diff
  * - Token budgeting
+ *
+ * Uses llm-tldr for AST-based code maps and impact-aware file ranking.
  */
 
 import { dirname, basename, relative } from "path";
 import { $ } from "bun";
 import { extractCodeMap, formatCodeMap, type CodeMap } from "./codemap";
+import type { TldrClient } from "../tldr";
 
 /** Token budget configuration */
 export interface TokenBudget {
@@ -100,12 +103,14 @@ async function getGitDiff(baseBranch?: string): Promise<string> {
 }
 
 /**
- * Rank files by relevance
+ * Rank files by relevance.
+ * Supports impact-aware ranking: files in `impactedFiles` get +50 priority.
  */
 export function rankFiles(
   files: Array<{ path: string; content: string }>,
   changedFiles: Set<string>,
-  rootPath: string
+  rootPath: string,
+  impactedFiles?: Set<string>,
 ): RankedFile[] {
   return files.map((file) => {
     const relPath = relative(rootPath, file.path);
@@ -114,6 +119,11 @@ export function rankFiles(
     // Changed files get highest priority
     if (changedFiles.has(relPath) || changedFiles.has(file.path)) {
       priority += 100;
+    }
+
+    // Impact-aware: files identified by tldr call graph get +50
+    if (impactedFiles && (impactedFiles.has(relPath) || impactedFiles.has(file.path))) {
+      priority += 50;
     }
 
     // Entry points get high priority
@@ -163,13 +173,16 @@ export function rankFiles(
 }
 
 /**
- * Build a context plan that fits within the token budget
+ * Build a context plan that fits within the token budget.
+ * Now async because extractCodeMap uses tldr.
  */
-export function buildContextPlan(
+export async function buildContextPlan(
   rankedFiles: RankedFile[],
   budget: TokenBudget,
-  gitDiff?: string
-): ContextPlan {
+  tldr: TldrClient,
+  projectPath: string,
+  gitDiff?: string,
+): Promise<ContextPlan> {
   // Sort by priority (highest first)
   const sorted = [...rankedFiles].sort((a, b) => b.priority - a.priority);
 
@@ -199,8 +212,8 @@ export function buildContextPlan(
       continue;
     }
 
-    // Try code map
-    const codeMap = extractCodeMap(file.path, file.content);
+    // Try code map (async with tldr)
+    const codeMap = await extractCodeMap(file.path, file.content, tldr, projectPath);
     const codeMapTokens = estimateTokens(formatCodeMap(codeMap));
 
     if (codeMapTokens <= availableTokens) {
@@ -339,7 +352,7 @@ export function buildContextXml(plan: ContextPlan, prompt: string, rootPath: str
  * @param files - Files with their content
  * @param prompt - User's prompt
  * @param skillPrompt - Skill prompt content
- * @param options - Build options
+ * @param options - Build options (now requires tldr)
  * @returns Context XML and plan info
  */
 export async function buildOptimizedContext(
@@ -351,7 +364,8 @@ export async function buildOptimizedContext(
     baseBranch?: string;
     rootPath?: string;
     includeGitDiff?: boolean;
-  } = {}
+    tldr: TldrClient;
+  },
 ): Promise<{
   xml: string;
   plan: ContextPlan;
@@ -375,11 +389,36 @@ export async function buildOptimizedContext(
   const changedFiles = await getChangedFiles(options.baseBranch);
   const gitDiff = options.includeGitDiff ? await getGitDiff(options.baseBranch) : undefined;
 
-  // Rank files
-  const rankedFiles = rankFiles(files, changedFiles, rootPath);
+  // Get impacted files from tldr (call graph of changed symbols)
+  let impactedFiles: Set<string> | undefined;
+  try {
+    const impacted = new Set<string>();
+    for (const changedFile of changedFiles) {
+      const entries = await options.tldr.structure(changedFile, rootPath);
+      for (const entry of entries.slice(0, 10)) {
+        // Limit to 10 symbols per file
+        try {
+          const impact = await options.tldr.impact(entry.name, rootPath);
+          for (const caller of impact.callers) {
+            impacted.add(caller.file);
+          }
+        } catch {
+          // Skip symbols without impact data
+        }
+      }
+    }
+    if (impacted.size > 0) {
+      impactedFiles = impacted;
+    }
+  } catch {
+    // If impact analysis fails, proceed without it
+  }
 
-  // Build plan
-  const plan = buildContextPlan(rankedFiles, budget, gitDiff);
+  // Rank files (with impact data)
+  const rankedFiles = rankFiles(files, changedFiles, rootPath, impactedFiles);
+
+  // Build plan (async — uses tldr for code maps)
+  const plan = await buildContextPlan(rankedFiles, budget, options.tldr, rootPath, gitDiff);
 
   // Build XML
   const xml = buildContextXml(plan, prompt, rootPath);

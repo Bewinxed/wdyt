@@ -27,6 +27,7 @@ import { selectGetCommand, selectAddCommand } from "./commands/select";
 import { chatSendCommand } from "./commands/chat";
 import { skillGetCommand, skillListCommand } from "./commands/skill";
 import { parseExpression } from "./parseExpression";
+import { TldrClient } from "./tldr";
 
 /**
  * Execute a parsed expression
@@ -153,6 +154,46 @@ async function executeExpression(
       return { success: false, error: `Unknown call: ${callTarget}` };
     }
 
+    case "tldr": {
+      const subcommand = parsed.subcommand || parsed.positional[0];
+      const tldr = new TldrClient();
+
+      if (subcommand === "warm") {
+        const projectPath = parsed.positional[1] || process.cwd();
+        try {
+          await tldr.ensureWarmed(projectPath);
+          return { success: true, output: "tldr index warmed successfully." };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return { success: false, error: message };
+        }
+      }
+
+      if (subcommand === "status") {
+        const projectPath = parsed.positional[1] || process.cwd();
+        const available = await tldr.isAvailable();
+        const warmed = available ? await tldr.isWarmed(projectPath) : false;
+
+        const status = {
+          uvxAvailable: available,
+          projectWarmed: warmed,
+          projectPath,
+        };
+
+        return {
+          success: true,
+          data: status,
+          output: [
+            `uvx available: ${available ? "yes" : "no"}`,
+            `project warmed: ${warmed ? "yes" : "no"}`,
+            `project path: ${projectPath}`,
+          ].join("\n"),
+        };
+      }
+
+      return { success: false, error: `Unknown tldr subcommand: ${subcommand}. Use 'warm' or 'status'.` };
+    }
+
     default:
       return { success: false, error: `Unknown command: ${parsed.command}` };
   }
@@ -251,6 +292,8 @@ const main = defineCommand({
         console.log("  select get                 Get selected files");
         console.log('  select add "path"          Add file to selection');
         console.log("  call chat_send {...}       Export context for review");
+        console.log("  tldr warm                  Index project for llm-tldr");
+        console.log("  tldr status                Show llm-tldr status");
         console.log("");
         console.log("Flags:");
         console.log("  --raw-json    Output raw JSON");
