@@ -1,6 +1,6 @@
 {
   "name": "wdyt",
-  "version": "0.1.17",
+  "version": "0.2.0",
   "type": "module",
   "description": "Code review context builder for LLMs - what do you think?",
   "license": "MIT",
@@ -8,7 +8,8 @@
   "main": "src/cli.ts",
   "bin": {
     "wdyt": "./src/cli.ts",
-    "rp-cli": "./src/cli.ts"
+    "rp-cli": "./src/cli.ts",
+    "wdyt-mcp": "./src/mcp-server.ts"
   },
   "files": [
     "src/**/*.ts",
@@ -46,9 +47,11 @@
     "prepublishOnly": "bun test"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "citty": "^0.1.6",
     "shell-quote": "^1.8.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0"
