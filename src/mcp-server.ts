@@ -22,7 +22,9 @@ import type {
   TldrContextResult,
 } from "./tldr/types";
 
-const server = new McpServer({ name: "wdyt", version: "0.1.17" });
+import pkg from "../package.json";
+
+const server = new McpServer({ name: "wdyt", version: pkg.version });
 const tldr = new TldrClient();
 const defaultProjectPath = process.cwd();
 

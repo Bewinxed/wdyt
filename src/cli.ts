@@ -234,30 +234,57 @@ function formatOutput(
  * citty's subcommand resolution conflicts with the -e flag pattern,
  * so we intercept mcp commands from process.argv directly.
  */
+async function promptScope(): Promise<"project" | "user"> {
+  const { createInterface } = await import("node:readline");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  const ask = (q: string): Promise<string> =>
+    new Promise((resolve) => rl.question(q, resolve));
+
+  console.log("Where should the MCP server be configured?\n");
+  console.log("  1) project  — .mcp.json in this directory (recommended)");
+  console.log("               Available to anyone who clones this repo.");
+  console.log("  2) user     — Claude Code user settings (via claude mcp add)");
+  console.log("               Available in all your projects.\n");
+
+  while (true) {
+    const choice = (await ask("Scope [1]: ")).trim();
+    if (choice === "" || choice === "1" || choice === "project") { rl.close(); return "project"; }
+    if (choice === "2" || choice === "user") { rl.close(); return "user"; }
+  }
+}
+
+function parseScope(args: string[]): "project" | "user" | null {
+  if (args.includes("--project")) return "project";
+  if (args.includes("--global") || args.includes("--user")) return "user";
+  return null;
+}
+
 async function handleMcpSubcommand(): Promise<boolean> {
   const args = process.argv.slice(2);
   if (args[0] !== "mcp") return false;
 
   const sub = args[1];
-  const isGlobal = args.includes("--global");
 
   if (sub === "install") {
+    const scope = parseScope(args) ?? await promptScope();
     const { mcpInstallCommand } = await import("./commands/mcp");
-    const result = await mcpInstallCommand(isGlobal ? "global" : "project");
+    const result = await mcpInstallCommand(scope === "user" ? "global" : "project");
     console.log(result.output || result.error);
     process.exit(result.success ? 0 : 1);
   }
 
   if (sub === "uninstall") {
+    const scope = parseScope(args) ?? await promptScope();
     const { mcpUninstallCommand } = await import("./commands/mcp");
-    const result = await mcpUninstallCommand(isGlobal ? "global" : "project");
+    const result = await mcpUninstallCommand(scope === "user" ? "global" : "project");
     console.log(result.output || result.error);
     process.exit(result.success ? 0 : 1);
   }
 
   console.error("Unknown mcp subcommand. Use 'install' or 'uninstall'.");
-  console.error("  wdyt mcp install [--global]");
-  console.error("  wdyt mcp uninstall [--global]");
+  console.error("  wdyt mcp install [--project | --user]");
+  console.error("  wdyt mcp uninstall [--project | --user]");
   process.exit(1);
 }
 
@@ -331,8 +358,8 @@ const main = defineCommand({
         console.log("  tldr status                Show llm-tldr status");
         console.log("");
         console.log("Commands:");
-        console.log("  mcp install [--global]     Add wdyt MCP tools to Claude Code");
-        console.log("  mcp uninstall [--global]   Remove wdyt MCP tools from Claude Code");
+        console.log("  mcp install                Add wdyt MCP tools to Claude Code");
+        console.log("  mcp uninstall              Remove wdyt MCP tools from Claude Code");
         console.log("");
         console.log("Flags:");
         console.log("  --raw-json    Output raw JSON");
