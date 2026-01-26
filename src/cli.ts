@@ -234,12 +234,16 @@ function formatOutput(
  * citty's subcommand resolution conflicts with the -e flag pattern,
  * so we intercept mcp commands from process.argv directly.
  */
-async function promptScope(): Promise<"project" | "user"> {
+async function createPrompt(): Promise<{ ask: (q: string) => Promise<string>; close: () => void }> {
   const { createInterface } = await import("node:readline");
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-
   const ask = (q: string): Promise<string> =>
     new Promise((resolve) => rl.question(q, resolve));
+  return { ask, close: () => rl.close() };
+}
+
+async function promptScope(): Promise<"project" | "user"> {
+  const { ask, close } = await createPrompt();
 
   console.log("Where should the MCP server be configured?\n");
   console.log("  1) project  — .mcp.json in this directory (recommended)");
@@ -249,9 +253,16 @@ async function promptScope(): Promise<"project" | "user"> {
 
   while (true) {
     const choice = (await ask("Scope [1]: ")).trim();
-    if (choice === "" || choice === "1" || choice === "project") { rl.close(); return "project"; }
-    if (choice === "2" || choice === "user") { rl.close(); return "user"; }
+    if (choice === "" || choice === "1" || choice === "project") { close(); return "project"; }
+    if (choice === "2" || choice === "user") { close(); return "user"; }
   }
+}
+
+async function promptYesNo(question: string): Promise<boolean> {
+  const { ask, close } = await createPrompt();
+  const answer = (await ask(question)).trim().toLowerCase();
+  close();
+  return answer === "" || answer === "y" || answer === "yes";
 }
 
 function parseScope(args: string[]): "project" | "user" | null {
@@ -268,17 +279,41 @@ async function handleMcpSubcommand(): Promise<boolean> {
 
   if (sub === "install") {
     const scope = parseScope(args) ?? await promptScope();
-    const { mcpInstallCommand } = await import("./commands/mcp");
+    const { mcpInstallCommand, updateClaudeMd } = await import("./commands/mcp");
     const result = await mcpInstallCommand(scope === "user" ? "global" : "project");
     console.log(result.output || result.error);
+
+    if (result.success) {
+      console.log("");
+      const shouldUpdate = await promptYesNo("Update CLAUDE.md with tool usage instructions? [Y/n]: ");
+      if (shouldUpdate) {
+        const claudePath = await updateClaudeMd(process.cwd());
+        console.log(`Updated ${claudePath}`);
+      }
+    }
+
     process.exit(result.success ? 0 : 1);
   }
 
   if (sub === "uninstall") {
     const scope = parseScope(args) ?? await promptScope();
-    const { mcpUninstallCommand } = await import("./commands/mcp");
+    const { mcpUninstallCommand, removeClaudeMdSection } = await import("./commands/mcp");
     const result = await mcpUninstallCommand(scope === "user" ? "global" : "project");
     console.log(result.output || result.error);
+
+    if (result.success) {
+      console.log("");
+      const shouldRemove = await promptYesNo("Remove wdyt section from CLAUDE.md? [Y/n]: ");
+      if (shouldRemove) {
+        const claudePath = await removeClaudeMdSection(process.cwd());
+        if (claudePath) {
+          console.log(`Updated ${claudePath}`);
+        } else {
+          console.log("No wdyt section found in CLAUDE.md.");
+        }
+      }
+    }
+
     process.exit(result.success ? 0 : 1);
   }
 

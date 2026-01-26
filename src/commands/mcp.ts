@@ -29,7 +29,7 @@ When exploring code, prefer the wdyt MCP tools over raw grep/read:
 - Use tldr_complexity to check cyclomatic complexity before refactoring
 ${CLAUDE_MD_END}`;
 
-async function updateClaudeMd(dir: string): Promise<string> {
+export async function updateClaudeMd(dir: string): Promise<string> {
   const path = join(dir, "CLAUDE.md");
   let content = "";
 
@@ -54,10 +54,10 @@ async function updateClaudeMd(dir: string): Promise<string> {
   }
 
   await writeFile(path, content, "utf-8");
-  return "Updated CLAUDE.md with wdyt tool instructions.";
+  return path;
 }
 
-async function removeClaudeMdSection(dir: string): Promise<string> {
+export async function removeClaudeMdSection(dir: string): Promise<string | null> {
   const path = join(dir, "CLAUDE.md");
 
   try {
@@ -66,16 +66,16 @@ async function removeClaudeMdSection(dir: string): Promise<string> {
     const endIdx = content.indexOf(CLAUDE_MD_END);
 
     if (beginIdx === -1 || endIdx === -1) {
-      return "";
+      return null;
     }
 
     const before = content.slice(0, beginIdx);
     const after = content.slice(endIdx + CLAUDE_MD_END.length);
     content = (before + after).replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
     await writeFile(path, content, "utf-8");
-    return "Removed wdyt section from CLAUDE.md.";
+    return path;
   } catch {
-    return "";
+    return null;
   }
 }
 
@@ -134,10 +134,9 @@ export async function mcpInstallCommand(
         };
       }
 
-      const claudeMsg = await updateClaudeMd(process.cwd());
       return {
         success: true,
-        output: `wdyt MCP server added globally to Claude Code.\n${claudeMsg}`,
+        output: "wdyt MCP server added to Claude Code user settings.",
       };
     } catch (error) {
       return {
@@ -157,11 +156,10 @@ export async function mcpInstallCommand(
 
   existing.mcpServers.wdyt = MCP_SERVER_CONFIG;
   await writeMcpJson(dir, existing);
-  const claudeMsg = await updateClaudeMd(dir);
 
   return {
     success: true,
-    output: `wdyt MCP server added to .mcp.json\n${claudeMsg}`,
+    output: `wdyt MCP server added to ${join(dir, ".mcp.json")}`,
   };
 }
 
@@ -188,10 +186,9 @@ export async function mcpUninstallCommand(
         };
       }
 
-      const claudeMsg = await removeClaudeMdSection(process.cwd());
       return {
         success: true,
-        output: `wdyt MCP server removed from Claude Code (global).${claudeMsg ? `\n${claudeMsg}` : ""}`,
+        output: "wdyt MCP server removed from Claude Code user settings.",
       };
     } catch (error) {
       return {
@@ -206,10 +203,9 @@ export async function mcpUninstallCommand(
   const existing = await readMcpJson(dir);
 
   if (!existing.mcpServers || !existing.mcpServers.wdyt) {
-    const claudeMsg = await removeClaudeMdSection(dir);
     return {
       success: true,
-      output: `wdyt MCP server was not configured in .mcp.json.${claudeMsg ? `\n${claudeMsg}` : ""}`,
+      output: "wdyt MCP server was not configured in .mcp.json.",
     };
   }
 
@@ -222,17 +218,15 @@ export async function mcpUninstallCommand(
     } catch {
       // File might not exist, that's fine
     }
-    const claudeMsg = await removeClaudeMdSection(dir);
     return {
       success: true,
-      output: `wdyt MCP server removed. .mcp.json deleted (was empty).${claudeMsg ? `\n${claudeMsg}` : ""}`,
+      output: `wdyt MCP server removed. ${join(dir, ".mcp.json")} deleted (was empty).`,
     };
   }
 
   await writeMcpJson(dir, existing);
-  const claudeMsg = await removeClaudeMdSection(dir);
   return {
     success: true,
-    output: `wdyt MCP server removed from .mcp.json.${claudeMsg ? `\n${claudeMsg}` : ""}`,
+    output: `wdyt MCP server removed from ${join(dir, ".mcp.json")}`,
   };
 }
