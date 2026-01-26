@@ -229,6 +229,41 @@ function formatOutput(
   return `Error: ${result.error}`;
 }
 
+/**
+ * Handle `wdyt mcp install|uninstall [--global]` before citty parses flags.
+ * citty's subcommand resolution conflicts with the -e flag pattern,
+ * so we intercept mcp commands from process.argv directly.
+ */
+async function handleMcpSubcommand(): Promise<boolean> {
+  const args = process.argv.slice(2);
+  if (args[0] !== "mcp") return false;
+
+  const sub = args[1];
+  const isGlobal = args.includes("--global");
+
+  if (sub === "install") {
+    const { mcpInstallCommand } = await import("./commands/mcp");
+    const result = await mcpInstallCommand(isGlobal ? "global" : "project");
+    console.log(result.output || result.error);
+    process.exit(result.success ? 0 : 1);
+  }
+
+  if (sub === "uninstall") {
+    const { mcpUninstallCommand } = await import("./commands/mcp");
+    const result = await mcpUninstallCommand(isGlobal ? "global" : "project");
+    console.log(result.output || result.error);
+    process.exit(result.success ? 0 : 1);
+  }
+
+  console.error("Unknown mcp subcommand. Use 'install' or 'uninstall'.");
+  console.error("  wdyt mcp install [--global]");
+  console.error("  wdyt mcp uninstall [--global]");
+  process.exit(1);
+}
+
+// Handle mcp commands before citty takes over
+await handleMcpSubcommand();
+
 const main = defineCommand({
     meta: {
       name: "wdyt",
@@ -294,6 +329,10 @@ const main = defineCommand({
         console.log("  call chat_send {...}       Export context for review");
         console.log("  tldr warm                  Index project for llm-tldr");
         console.log("  tldr status                Show llm-tldr status");
+        console.log("");
+        console.log("Commands:");
+        console.log("  mcp install [--global]     Add wdyt MCP tools to Claude Code");
+        console.log("  mcp uninstall [--global]   Remove wdyt MCP tools from Claude Code");
         console.log("");
         console.log("Flags:");
         console.log("  --raw-json    Output raw JSON");

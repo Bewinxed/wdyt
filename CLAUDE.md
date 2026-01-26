@@ -21,3 +21,11 @@ This project uses Flow-Next for task tracking. Use `.flow/bin/flowctl` instead o
 
 **More info:** `.flow/bin/flowctl --help` or read `.flow/usage.md`
 <!-- END FLOW-NEXT -->
+
+
+## Code Analysis Tools (MCP)                                                 
+When exploring code, prefer the wdyt MCP tools over raw grep/read:   
+- Use tldr_codemap to get file overviews instead of reading entire files 
+- Use tldr_impact to find function callers/callees instead of grepping   
+- Use tldr_semantic_search to find related code by behavior  
+- Use tldr_structure to list all definitions in a file
