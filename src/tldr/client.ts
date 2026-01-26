@@ -21,9 +21,123 @@ const INSTALL_MESSAGE = `llm-tldr requires uv (Python package runner).
 Install: curl -LsSf https://astral.sh/uv/install.sh | sh
 Then retry your command. wdyt will auto-install llm-tldr via uvx.`;
 
+// --- Fuzzy matching ---
+
+interface CallGraphEdge {
+  from_func: string;
+  to_func: string;
+}
+
+interface CallGraphData {
+  edges: CallGraphEdge[];
+}
+
+/**
+ * Levenshtein edit distance between two strings.
+ */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+
+  return dp[m][n];
+}
+
+/**
+ * Score how well a candidate matches a query (0–1, higher = better).
+ * Combines substring match, Levenshtein ratio, and prefix bonus.
+ */
+function fuzzyScore(query: string, candidate: string): number {
+  const q = query.toLowerCase();
+  const c = candidate.toLowerCase();
+
+  // Exact match
+  if (q === c) return 1.0;
+
+  let score = 0;
+
+  // Substring containment (strong signal)
+  if (c.includes(q)) {
+    // query is a substring of candidate — high relevance
+    score = Math.max(score, 0.7 + 0.2 * (q.length / c.length));
+  } else if (q.includes(c)) {
+    // candidate is a substring of query
+    score = Math.max(score, 0.5 + 0.2 * (c.length / q.length));
+  }
+
+  // Levenshtein similarity (normalized)
+  const maxLen = Math.max(q.length, c.length);
+  if (maxLen > 0) {
+    const dist = levenshtein(q, c);
+    const levScore = 1 - dist / maxLen;
+    score = Math.max(score, levScore);
+  }
+
+  // Common prefix bonus (camelCase-friendly)
+  let prefixLen = 0;
+  const minLen = Math.min(q.length, c.length);
+  for (let i = 0; i < minLen; i++) {
+    if (q[i] === c[i]) prefixLen++;
+    else break;
+  }
+  if (prefixLen > 0) {
+    score += 0.1 * (prefixLen / maxLen);
+  }
+
+  // camelCase token overlap bonus
+  const qTokens = new Set(splitCamelCase(q));
+  const cTokens = splitCamelCase(c);
+  let matches = 0;
+  for (const t of cTokens) {
+    if (qTokens.has(t)) matches++;
+  }
+  if (cTokens.length > 0 && qTokens.size > 0) {
+    const tokenScore = matches / Math.max(qTokens.size, cTokens.length);
+    score += 0.15 * tokenScore;
+  }
+
+  return Math.min(score, 1.0);
+}
+
+/**
+ * Split a camelCase or PascalCase string into lowercase tokens.
+ */
+function splitCamelCase(s: string): string[] {
+  return s
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[\s_.-]+/)
+    .filter(Boolean);
+}
+
+/**
+ * Find the top N similar function names from candidates.
+ */
+function findSimilar(query: string, candidates: string[], limit = 5, threshold = 0.4): string[] {
+  const scored = candidates
+    .map((name) => ({ name, score: fuzzyScore(query, name) }))
+    .filter((x) => x.score >= threshold)
+    .sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, limit).map((x) => x.name);
+}
+
 export class TldrClient {
   private runnerCache: string[] | null = null;
   private languagesCache: Map<string, string[]> = new Map();
+  private functionNamesCache: Map<string, string[]> = new Map();
 
   /**
    * Resolve the runner command.
@@ -68,6 +182,42 @@ export class TldrClient {
     const fallback = ["typescript", "python"];
     this.languagesCache.set(projectPath, fallback);
     return fallback;
+  }
+
+  /**
+   * Get all function names from the call graph for fuzzy matching.
+   */
+  private async getCallGraphFunctions(projectPath: string): Promise<string[]> {
+    const cached = this.functionNamesCache.get(projectPath);
+    if (cached) return cached;
+
+    try {
+      const file = Bun.file(`${projectPath}/.tldr/cache/call_graph.json`);
+      const data = await file.json() as CallGraphData;
+      const names = new Set<string>();
+      for (const edge of data.edges) {
+        names.add(edge.from_func);
+        names.add(edge.to_func);
+      }
+      const result = [...names].sort();
+      this.functionNamesCache.set(projectPath, result);
+      return result;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Build a "not found" error message with fuzzy suggestions.
+   */
+  private async notFoundError(functionName: string, projectPath: string): Promise<string> {
+    const allFunctions = await this.getCallGraphFunctions(projectPath);
+    const similar = findSimilar(functionName, allFunctions);
+
+    if (similar.length > 0) {
+      return `Function '${functionName}' not found in call graph. Similar: ${similar.join(", ")}`;
+    }
+    return `Function '${functionName}' not found in call graph`;
   }
 
   /**
@@ -212,7 +362,6 @@ export class TldrClient {
    */
   async impact(functionName: string, projectPath: string): Promise<TldrImpactResult> {
     const languages = await this.getLanguages(projectPath);
-    let lastError: string | null = null;
 
     for (const lang of languages) {
       const raw = await this.run<RawImpactResult>(
@@ -221,7 +370,6 @@ export class TldrClient {
       );
 
       if (raw.error) {
-        lastError = raw.error;
         // Only retry with next language if function wasn't found
         if (raw.error.includes("not found")) continue;
         throw new Error(raw.error);
@@ -247,7 +395,7 @@ export class TldrClient {
       };
     }
 
-    throw new Error(lastError || `Function '${functionName}' not found in call graph`);
+    throw new Error(await this.notFoundError(functionName, projectPath));
   }
 
   /**
@@ -291,11 +439,18 @@ export class TldrClient {
       }
     }
 
-    // Final fallback: try without --lang
-    return this.runRaw(
-      ["context", functionName, "--project", projectPath],
-      projectPath
-    );
+    // Final fallback: try without --lang, and if that also gives bad output, suggest alternatives
+    try {
+      const result = await this.runRaw(
+        ["context", functionName, "--project", projectPath],
+        projectPath
+      );
+      if (result && !result.includes("(?:0)")) return result;
+    } catch {
+      // Fall through to suggestion
+    }
+
+    throw new Error(await this.notFoundError(functionName, projectPath));
   }
 
   /**
