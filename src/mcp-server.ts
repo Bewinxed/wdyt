@@ -19,7 +19,6 @@ import type {
   TldrStructureEntry,
   TldrImpactResult,
   TldrSemanticResult,
-  TldrContextResult,
 } from "./tldr/types";
 
 import pkg from "../package.json";
@@ -65,7 +64,8 @@ function formatStructure(entries: TldrStructureEntry[]): string {
   for (const type of order) {
     const group = groups[type];
     if (!group) continue;
-    lines.push(`\n${type.charAt(0).toUpperCase() + type.slice(1)}s:`);
+    const label = type === "class" ? "Classes" : `${type.charAt(0).toUpperCase() + type.slice(1)}s`;
+    lines.push(`\n${label}:`);
     for (const e of group) {
       lines.push(`  ${e.signature || e.name}  [line ${e.line}]`);
     }
@@ -79,12 +79,12 @@ function formatImpact(result: TldrImpactResult): string {
 
   lines.push(`\nCallers (${result.callers.length}):`);
   for (const c of result.callers) {
-    lines.push(`  ${c.name}  ${c.file}:${c.line}`);
+    lines.push(`  ${c.name}  ${c.file}${c.line ? `:${c.line}` : ""}`);
   }
 
   lines.push(`\nCallees (${result.callees.length}):`);
   for (const c of result.callees) {
-    lines.push(`  ${c.name}  ${c.file}:${c.line}`);
+    lines.push(`  ${c.name}  ${c.file}${c.line ? `:${c.line}` : ""}`);
   }
 
   return lines.join("\n");
@@ -100,19 +100,7 @@ function formatSemanticResults(results: TldrSemanticResult[]): string {
     .join("\n");
 }
 
-function formatContext(result: TldrContextResult): string {
-  const lines: string[] = [
-    `Function: ${result.function}`,
-    `File: ${result.file}`,
-    `Signature: ${result.signature}`,
-    `Complexity: ${result.complexity}`,
-    `\nCallers (${result.callers.length}):`,
-    ...result.callers.map((c) => `  ${c}`),
-    `\nCallees (${result.callees.length}):`,
-    ...result.callees.map((c) => `  ${c}`),
-  ];
-  return lines.join("\n");
-}
+// context() now returns rich text directly from llm-tldr, no formatting needed
 
 // --- Helper ---
 
@@ -353,7 +341,7 @@ server.registerTool(
       const projPath = pp || defaultProjectPath;
       await ensureReady(projPath);
       const result = await tldr.context(function_name, projPath);
-      return { content: [{ type: "text" as const, text: formatContext(result) }] };
+      return { content: [{ type: "text" as const, text: result }] };
     } catch (error) {
       return {
         content: [
@@ -374,8 +362,10 @@ server.registerTool(
     title: "Index Project",
     description:
       "Index or reindex the project for call graph and semantic search. " +
+      "Builds both the call graph cache and semantic embedding index. " +
       "Required before tldr_impact, tldr_semantic_search, and tldr_context work. " +
-      "Run once per project, or after major code changes.",
+      "Run once per project, or after major code changes. " +
+      "First run downloads an embedding model (~1.3GB).",
     inputSchema: {
       projectPath: z
         .string()
@@ -437,10 +427,25 @@ server.registerTool(
     try {
       const projPath = pp || defaultProjectPath;
       const available = await tldr.isAvailable();
-      const warmed = available ? await tldr.isWarmed(projPath) : false;
+
+      let callGraph = false;
+      let semantic = false;
+      let languages: string[] = [];
+
+      if (available) {
+        callGraph = await Bun.file(`${projPath}/.tldr/cache/call_graph.json`).exists().catch(() => false);
+        semantic = await Bun.file(`${projPath}/.tldr/cache/semantic/index.faiss`).exists().catch(() => false);
+        try {
+          const langFile = await Bun.file(`${projPath}/.tldr/languages.json`).json() as { languages: string[] };
+          languages = langFile.languages || [];
+        } catch { /* no languages file */ }
+      }
+
       const lines = [
         `uvx available: ${available ? "yes" : "no"}`,
-        `project indexed: ${warmed ? "yes" : "no"}`,
+        `call graph: ${callGraph ? "yes" : "no"}`,
+        `semantic index: ${semantic ? "yes" : "no"}`,
+        `languages: ${languages.length ? languages.join(", ") : "none"}`,
         `project path: ${projPath}`,
       ];
       return { content: [{ type: "text" as const, text: lines.join("\n") }] };

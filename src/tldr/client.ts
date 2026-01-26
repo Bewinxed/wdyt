@@ -11,6 +11,10 @@ import type {
   TldrImpactResult,
   TldrSemanticResult,
   TldrContextResult,
+  RawExtractResult,
+  RawImpactResult,
+  RawSemanticResult,
+  RawCfgResult,
 } from "./types";
 
 const INSTALL_MESSAGE = `llm-tldr requires uv (Python package runner).
@@ -19,6 +23,7 @@ Then retry your command. wdyt will auto-install llm-tldr via uvx.`;
 
 export class TldrClient {
   private runnerCache: string[] | null = null;
+  private languagesCache: Map<string, string[]> = new Map();
 
   /**
    * Resolve the runner command.
@@ -39,6 +44,30 @@ export class TldrClient {
     } catch {
       throw new Error(INSTALL_MESSAGE);
     }
+  }
+
+  /**
+   * Read indexed languages for a project from .tldr/languages.json.
+   * Falls back to ["typescript", "python"] if file doesn't exist.
+   */
+  private async getLanguages(projectPath: string): Promise<string[]> {
+    const cached = this.languagesCache.get(projectPath);
+    if (cached) return cached;
+
+    try {
+      const file = Bun.file(`${projectPath}/.tldr/languages.json`);
+      const data = await file.json() as { languages: string[] };
+      if (data.languages?.length) {
+        this.languagesCache.set(projectPath, data.languages);
+        return data.languages;
+      }
+    } catch {
+      // File doesn't exist or is invalid
+    }
+
+    const fallback = ["typescript", "python"];
+    this.languagesCache.set(projectPath, fallback);
+    return fallback;
   }
 
   /**
@@ -101,83 +130,184 @@ export class TldrClient {
   }
 
   /**
-   * Ensure the project is warmed (indexed).
-   * Checks for .tldr/ dir; runs `tldr warm` if missing. Shows progress to stderr.
+   * Ensure the project is fully indexed.
+   * Runs `tldr warm` for call graph and `tldr semantic index` for embeddings.
    */
   async ensureWarmed(projectPath: string): Promise<void> {
-    try {
-      const exists = await Bun.file(`${projectPath}/.tldr/index.json`).exists();
-      if (exists) return;
-    } catch {
-      // Directory doesn't exist, need to warm
+    const callGraphExists = await Bun.file(`${projectPath}/.tldr/cache/call_graph.json`).exists().catch(() => false);
+    const semanticExists = await Bun.file(`${projectPath}/.tldr/cache/semantic/index.faiss`).exists().catch(() => false);
+
+    if (callGraphExists && semanticExists) return;
+
+    if (!callGraphExists) {
+      console.error("Building call graph index...");
+      await this.runRaw(["warm", projectPath], projectPath);
+      console.error("Call graph ready.");
     }
 
-    console.error("Warming llm-tldr index (first run)...");
-    await this.runRaw(["warm", projectPath], projectPath);
-    console.error("llm-tldr index ready.");
+    if (!semanticExists) {
+      console.error("Building semantic index (downloads embedding model on first run)...");
+      await this.runRaw(["semantic", "index", projectPath], projectPath);
+      console.error("Semantic index ready.");
+    }
   }
 
   /**
-   * Get AST-based structure of a file.
-   * Replaces regex-based codemap and symbol extraction.
-   *
-   * `tldr structure <path> --json`
+   * Get AST-based structure of a single file.
+   * Uses `tldr extract <path>` and converts to TldrStructureEntry[].
    */
   async structure(filePath: string, projectPath?: string): Promise<TldrStructureEntry[]> {
-    return this.run<TldrStructureEntry[]>(
-      ["structure", filePath, "--json"],
+    const raw = await this.run<RawExtractResult>(
+      ["extract", filePath],
       projectPath
     );
+
+    const entries: TldrStructureEntry[] = [];
+    const file = raw.file_path || filePath;
+
+    // Functions
+    if (raw.functions) {
+      for (const fn of raw.functions) {
+        entries.push({
+          name: fn.name,
+          type: "function",
+          file,
+          line: fn.line_number,
+          signature: fn.signature,
+        });
+      }
+    }
+
+    // Classes and their methods
+    if (raw.classes) {
+      for (const cls of raw.classes) {
+        entries.push({
+          name: cls.name,
+          type: "class",
+          file,
+          line: cls.line_number,
+          signature: cls.signature,
+        });
+
+        if (cls.methods) {
+          for (const method of cls.methods) {
+            entries.push({
+              name: method.name,
+              type: "method",
+              file,
+              line: method.line_number,
+              signature: method.signature,
+            });
+          }
+        }
+      }
+    }
+
+    return entries;
   }
 
   /**
    * Get call graph impact for a function.
-   * Replaces git grep reference finding.
-   *
-   * `tldr impact <func> <path> --json`
+   * Tries each indexed language since `--lang all` doesn't reliably search across languages.
    */
   async impact(functionName: string, projectPath: string): Promise<TldrImpactResult> {
-    return this.run<TldrImpactResult>(
-      ["impact", functionName, projectPath, "--json"],
-      projectPath
-    );
+    const languages = await this.getLanguages(projectPath);
+    let lastError: string | null = null;
+
+    for (const lang of languages) {
+      const raw = await this.run<RawImpactResult>(
+        ["impact", functionName, projectPath, "--lang", lang],
+        projectPath
+      );
+
+      if (raw.error) {
+        lastError = raw.error;
+        // Only retry with next language if function wasn't found
+        if (raw.error.includes("not found")) continue;
+        throw new Error(raw.error);
+      }
+
+      // Flatten targets into a single callers list (direct callers only)
+      const callers: Array<{ name: string; file: string; line: number }> = [];
+
+      for (const target of Object.values(raw.targets)) {
+        for (const caller of target.callers) {
+          callers.push({
+            name: caller.function,
+            file: caller.file,
+            line: 0, // impact CLI doesn't provide line numbers
+          });
+        }
+      }
+
+      return {
+        function: functionName,
+        callers,
+        callees: [], // impact CLI only provides callers
+      };
+    }
+
+    throw new Error(lastError || `Function '${functionName}' not found in call graph`);
   }
 
   /**
    * Semantic search for related code.
-   * Replaces the symbol+grep hints pipeline.
-   *
-   * `tldr semantic <query> <path> --json`
+   * Uses `tldr semantic search <query> --path <path>`.
    */
   async semantic(query: string, projectPath: string): Promise<TldrSemanticResult[]> {
-    return this.run<TldrSemanticResult[]>(
-      ["semantic", query, projectPath, "--json"],
+    const raw = await this.run<RawSemanticResult[]>(
+      ["semantic", "search", query, "--path", projectPath],
       projectPath
     );
+
+    return raw.map((r) => ({
+      function: r.name,
+      file: r.file,
+      line: r.line,
+      score: r.score,
+    }));
   }
 
   /**
-   * Get rich context for a function (signature, callers, callees, complexity).
-   *
-   * `tldr context <func> --project <path> --json`
+   * Get rich context for a function (text output).
+   * Tries each indexed language since default may not find the right one.
    */
   async context(functionName: string, projectPath: string): Promise<TldrContextResult> {
-    return this.run<TldrContextResult>(
-      ["context", functionName, "--project", projectPath, "--json"],
+    const languages = await this.getLanguages(projectPath);
+
+    for (const lang of languages) {
+      try {
+        const result = await this.runRaw(
+          ["context", functionName, "--project", projectPath, "--lang", lang],
+          projectPath
+        );
+        // context without the right language returns minimal output like "?:0"
+        // Check for a meaningful result (has file location)
+        if (result && !result.includes("(?:0)")) {
+          return result;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    // Final fallback: try without --lang
+    return this.runRaw(
+      ["context", functionName, "--project", projectPath],
       projectPath
     );
   }
 
   /**
    * Get cyclomatic complexity for a function in a file.
-   * Extracted from `tldr cfg <file> <func> --json`.
+   * Uses `tldr cfg <file> <func>`.
    */
   async complexity(file: string, functionName: string, projectPath?: string): Promise<number> {
-    const result = await this.run<{ complexity: number }>(
-      ["cfg", file, functionName, "--json"],
+    const result = await this.run<RawCfgResult>(
+      ["cfg", file, functionName],
       projectPath
     );
-    return result.complexity;
+    return result.cyclomatic_complexity;
   }
 
   /**
@@ -193,11 +323,13 @@ export class TldrClient {
   }
 
   /**
-   * Check if a project has been warmed/indexed.
+   * Check if a project has been fully indexed (call graph + semantic).
    */
   async isWarmed(projectPath: string): Promise<boolean> {
     try {
-      return await Bun.file(`${projectPath}/.tldr/index.json`).exists();
+      const callGraph = await Bun.file(`${projectPath}/.tldr/cache/call_graph.json`).exists();
+      const semantic = await Bun.file(`${projectPath}/.tldr/cache/semantic/index.faiss`).exists();
+      return callGraph && semantic;
     } catch {
       return false;
     }
